@@ -16,6 +16,7 @@ if __name__ == "__main__" and __package__ is None:
 
 import textwrap
 import argparse
+import phantom
 import reconstruction
 import version
 
@@ -34,12 +35,16 @@ parser = argparse.ArgumentParser(
 parser.add_argument('filepattern', action='store',
                     help=textwrap.dedent(
                     '''e.g. a-*.tiff reads a-Ca.tiff, a-Zn.tiff, etc.'''))
-parser.add_argument('--algorithm', action='store', default='f',
+parser.add_argument('-m', '--method', action='store', default='f',
+                    choices=['f','s'],
                     help=textwrap.dedent(
-                    '''algorithm one of [f=fbp, s=sart] (default f)
+                    '''Algorithm; one of [f=fbp, s=SART] (default f)
                     fbp uses a standard ramp'''))
+parser.add_argument('-n', type=int,
+                    help=textwrap.dedent(
+                    '''Number of iterations - ignored if not using SART'''))
 parser.add_argument('-a', '--anglelist', action='store', default='angles.txt',
-                    help=textwrap.dedent('''filename of textfile containing
+                    help=textwrap.dedent('''Filename of textfile containing
                                           list of projection angles, e.g.
                                           angles.txt'''))
 
@@ -47,8 +52,9 @@ args = vars(parser.parse_args())
 
 
 filepattern = args['filepattern']
-algorithm = args['algorithm']
+method = args['method']
 anglelist = args['anglelist']
+n = args['n']
 
 p = phantom.Phantom2d(filename=filepattern)
-reconstruction.reconstruct(p, algorithm, anglelist)
+reconstruction.reconstruct(p, method, anglelist)

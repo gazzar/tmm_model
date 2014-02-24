@@ -11,7 +11,6 @@
 import os
 import numpy as np
 from skimage.transform import iradon, iradon_sart, rotate
-from skimage.io import imread, imsave
 from helpers import write_tiff32
 import glob, fnmatch
 
@@ -32,13 +31,13 @@ def reconstruct_and_write(el, el_map0, pattern, algorithm, anglelist=None):
     """
     assert algorithm in ['f', 's']
 
-    sinogram = el_map0.T.astype(np.float64)
+    sinogram = np.rot90(el_map0).astype(np.float64)
     if algorithm == 'f':
         # conventional filtered backprojection
         im = iradon(sinogram, anglelist, circle=True)
 
     if algorithm == 's':
-        # conventional filtered backprojection
+        # 1-pass Simultaneous Algebraic Reconstruction Technique (SART)
         im = iradon_sart(sinogram, anglelist)
 
     # Get the filename that matches the glob pattern for this element

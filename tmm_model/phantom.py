@@ -16,12 +16,11 @@ data structure defined in a yaml file.
 
 import os
 import numpy as np
-from skimage.io import imread, imsave
 from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
 from collections import Iterable
-from helpers import write_tiff32
+from helpers import write_tiff32, read_tiff32
 import yaml
 import glob
 
@@ -79,12 +78,13 @@ class Phantom2d(object):
     dict of float32 arrays must be created locally.
 
     """
-    def __init__(self, size=None, scale=1.0, filename=None,
+    def __init__(self, size=None, um_per_px=1.0, energy=15, filename=None,
                   matrix_elements=''):
         """
         Arguments:
         size - (rows,cols) in px
-        scale - units_per_px, e.g. 0.1 defines a scale of 0.1 units per px
+        um_per_px - um_per_px, e.g. 0.1 defines a scale of 0.1 um/px
+        energy - incident energy (keV)
         filename - if not None, passed to self.read_map() to create the phantom
             from a greyscale image map filename.png and compound data
             filename.yaml
@@ -96,6 +96,8 @@ class Phantom2d(object):
         self.el_maps = {}       # container for elemental maps
         self.matrix_elements = matrix_elements
         self.filename = filename
+        self.energy = energy
+        self.um_per_px = float(um_per_px)
         if filename is not None:
             basedir, basename = os.path.split(filename)
             basename_noext, ext = os.path.splitext(basename)
@@ -114,7 +116,6 @@ class Phantom2d(object):
         else:
             self.rows, self.cols = size
             assert type(self.rows) is int and type(self.cols) is int
-            self.scale = float(scale)
             self.phantom_array = np.zeros(size, dtype=int)
 
 
@@ -129,14 +130,14 @@ class Phantom2d(object):
         rescaled value
 
         """
-        if self.scale is None:
+        if self.um_per_px is None:
             result = val
         else:
             if isinstance(val, Iterable):
                 container_type = type(val)
-                result = container_type(v/self.scale for v in val)
+                result = container_type(v/self.um_per_px for v in val)
             else:
-                result = val / self.scale
+                result = val / self.um_per_px
         return result
 
 
@@ -209,9 +210,9 @@ class Phantom2d(object):
         integer array
 
         """
-        im = imread(filename, as_grey=True)
+        im = read_tiff32(filename)
         self.rows, self.cols = im.shape
-        self.scale = 1.0
+        self.um_per_px = 1.0
         return im
 
 
@@ -250,7 +251,7 @@ class Phantom2d(object):
             assert('-' in f)
             basename, _ = os.path.splitext(f)
             el = basename.split('-')[-1]
-            im = imread(f, as_grey=True)
+            im = read_tiff32(f)
             self.rows, self.cols = im.shape
 
             self.el_maps[el] = im
