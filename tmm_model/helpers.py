@@ -10,6 +10,7 @@ import warnings
 from skimage.io import imsave, imread
 import skimage.transform as st
 import numpy as np
+import scipy.ndimage as nd
 import matplotlib.pyplot as plt
 
 # append current directory to the path because we need to find tifffile.py
@@ -68,6 +69,21 @@ def zero_outside_circle(im):
     mask = np.hypot(*np.ogrid[-side/2:side/2, -side/2:side/2])
     im[mask > side/2] = 0.0
     return im
+
+
+def zero_outside_mask(im, mask):
+    """Zero the entries in im (i.e. not in a copy of im) that lie in the outer
+    part of the mask image (based on the value of mask[0,0])
+    
+    Arguments:
+    im - 2d ndarray
+    mask - 2d ndarray
+
+    """
+    s = nd.generate_binary_structure(2, 2)      # 8-connected structure element
+    mask = (mask==mask[0,0])
+    la, _ = nd.label(mask, structure=s)
+    im[la==la[0,0]] = 0.0
 
 
 def imshow(im, show=False):
