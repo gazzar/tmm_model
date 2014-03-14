@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy import interpolate
+from collections import namedtuple
 import os
 
 '''
@@ -22,9 +23,35 @@ class brain_attenuation(object):
     b = brain_data()
     b.mu_on_rho(13)
 
-    Note: Mass of wet brain matter (C_1.4 H_1 O_7.1 N_0.2) is 1.04 g/cm^3 
+    Note: Density of wet brain matter (C_1.4 H_1 O_7.1 N_0.2) is 1.04 g/cm^3
+
+    The ICRU-44 brain tissue model is based on the following elemental mix
+    http://physics.nist.gov/PhysRefData/XrayMassCoef/tab2.html
+    <Z/A>       I (eV)   Density (g/cm3)    Composition (Z: fraction by weight)
+    0.55239     73.9     1.040E+00          H  1: 0.107000
+                                            C  6: 0.145000
+                                            N  7: 0.022000
+                                            O  8: 0.712000
+                                            Na 11: 0.002000
+                                            P  15: 0.004000
+                                            S  16: 0.002000
+                                            Cl 17: 0.003000
+                                            K  19: 0.003000
 
     """
+    Element = namedtuple('Element', 'Z fraction')
+    brain_icru44_composition = {
+        'H' : Element(Z=1 , fraction=0.107000),
+        'C' : Element(Z=6 , fraction=0.145000),
+        'N' : Element(Z=7 , fraction=0.022000),
+        'O' : Element(Z=8 , fraction=0.712000),
+        'Na': Element(Z=11, fraction=0.002000),
+        'P' : Element(Z=15, fraction=0.004000),
+        'S' : Element(Z=16, fraction=0.002000),
+        'Cl': Element(Z=17, fraction=0.003000),
+        'K' : Element(Z=19, fraction=0.003000),
+        }
+
     def __init__(self):
         self.brain_table = brain_table = pd.read_fwf(BRAIN_DATA)
 #        self.brain_table.mu_cm2_g[2] = 3.7e3

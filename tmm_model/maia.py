@@ -145,7 +145,7 @@ class Maia(object):
 
 
     def yx_angles_radian(self, row, col):
-        """Return angles along Y and X to centre coords (mm) of maia element
+        """Return angles along Y and X to centre of maia element
         row, col
 
         """

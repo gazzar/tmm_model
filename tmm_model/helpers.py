@@ -90,7 +90,7 @@ def imshow(im, show=False):
     """Display image in a window.
 
     """
-    plt.matshow(im, cmap='gray')
+    plt.imshow(im, origin='upper', interpolation='nearest', cmap='gray')
     plt.colorbar()
     if show:
         plt.show()
