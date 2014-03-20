@@ -16,7 +16,9 @@ data structure defined in a yaml file.
 
 import os
 import numpy as np
-from scipy.constants import physical_constants as pc
+from numpy import exp, pi
+import scipy.constants as sc
+from scipy.special import expm1
 from skimage.transform import radon
 #from skimage.io import imread, imsave
 from helpers import (write_tiff32, zero_outside_circle, zero_outside_mask,
@@ -32,8 +34,9 @@ import maia
 
 
 UM_PER_CM = 1e4
-deg_to_rad = lambda x: x/180*np.pi
-rad_to_deg = lambda x: x*180/np.pi
+J_PER_KEV = 1e3 * sc.eV
+deg_to_rad = lambda x: x/180*pi
+rad_to_deg = lambda x: x*180/pi
 
 def g_radon(im, anglelist):
     """My attempt at a radon transform. I'll assume the "circle=True"
@@ -61,7 +64,7 @@ def project_with_absorption(p, matrix_map, anglelist):
 
     Arguments:
     p - phantom object
-        p.energy - incident beam energy (keV)
+        p.energy - incident beam photon energy (keV)
         p.um_per_px - length of one pixel of the map (um)
     matrix_map - square 2d float32 array of element or compound abundance
     anglelist - list of angles in degrees
@@ -107,7 +110,7 @@ def absorption_map(p, angle, I0=1.0):
     mu_on_rho_t = b.mu_on_rho(p.energy) * p.um_per_px/UM_PER_CM
     i_map[:,0] = I0 * np.ones(i_map.shape[0])
     for i in range(im.shape[1]-1):
-        i_map[:,i+1] = i_map[:,i] * np.exp(-im[:,i] * mu_on_rho_t)
+        i_map[:,i+1] = i_map[:,i] * exp(-im[:,i] * mu_on_rho_t)
     return i_map
 
 
@@ -129,7 +132,7 @@ def rayleigh_compton_mu_on_rho(p, maia_d, row, col):
     
     # Get spherical angles (polar theta & azimuthal phi) to detector element
     y, x = maia_d.yx(row, col)
-    theta = np.pi/2 + np.arctan(maia_d.d_mm/np.hypot(x, y))
+    theta = pi/2 + np.arctan(maia_d.d_mm/np.hypot(x, y))
     phi = np.arctan2(y, x)
 
     b = brain_attenuation()                     # attenuation data object
@@ -157,6 +160,27 @@ def rayleigh_compton_mu_on_rho(p, maia_d, row, col):
     return rayleigh, compton
 
 
+def compton_scattered_energy(energy_in, maia_d, row, col):
+    """Energy of the Compton photons scattered into the direction of the Maia
+    detector element.
+
+    Arguments:
+    energy_in - incident beam photon energy (keV)
+    maia_d - maia detector object instance
+    row, col - maia detector element indices
+
+    Returns:
+    Energy of scattered photons (keV)
+
+    """
+    # Get polar scattering angle (theta) to detector element
+    y, x = maia_d.yx(row, col)
+    theta = pi/2 + np.arctan(maia_d.d_mm/np.hypot(x, y))
+    energy_out = 1.0 / (1.0/energy_in +
+                        (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
+    return energy_out
+
+
 def rayleigh_compton_map(p, imap, angle, maia_d):
     """Compute the Rayleigh and Compton scattering contributions into a row of
     Maia detector elements from the tissue matrix absorption map
@@ -173,6 +197,8 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
     (rayleigh, compton)
 
     """
+    b = brain_attenuation()                     # attenuation data object
+
     # imap contains the values of incident attenuated flux $F_\gamma$
     # but this includes outside the sample, so either:
     # 1. Get the Rayleigh scattering crosssection for air and use this outside
@@ -181,7 +207,6 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
     #    the sample.
     # Generate a label array using scipy.ndimage and mask the parts
     # corresponding to the label value in the 0,0 pixel of the label array
-    zero_outside_mask(imap, mask=p.el_maps['matrix'])
     imap_r = rotate(imap, -angle)
 
     # Get matrix map and rotate it to the same angle as the intensity map:
@@ -201,7 +226,7 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
         delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
         delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
 
-        # For every maia detector element, get the solid angle (parallel here?)
+        # For every maia detector element, get the solid angle (parallelize?)
         # First orient the intensity map toward the maia element
         # TODO: check sign of delta: +ve or -ve?
         imap_rm = rotate(imap_r, -delta_theta_x)
@@ -212,117 +237,55 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
         imap_rm = np.rot90(imap_rm)
         matrix_map_rm = np.rot90(matrix_map_rm)
 
-        # make a copy of the intensity map for the Compton component
+        # Make a copy of the intensity map for the Compton component.
         imap_cm = imap_rm.copy()
+
+        # Simulate scattering event:
+        # Get intensity scattered toward Maia element using scattering cross
+        # sections provided by xraylib. These are in the form of mass
+        # attenuation coefficients, so .
 
         # Get the contribution to Rayleigh and Compton scattering from each
         # element in the matrix compound and sum these.
         # Get the Rayleigh and Compton mass attenuation coefficients (cm2/g)
         rayleigh_mu_on_rho, compton_mu_on_rho = \
             rayleigh_compton_mu_on_rho(p, maia_d, row, col)
-    
-        # Now, accumulate all intensity to the detector, with absorption
-        # mu_on_rho_t = mu_on_rho * p.um_per_px/UM_PER_CM
+
+        # Scale for propagation over one voxel
+        # *_mu_on_rho_t = *_mu_on_rho * p.um_per_px/UM_PER_CM
         #     (cm3/g) =   (cm2/g) * cm
         rayleigh_mu_on_rho_t = rayleigh_mu_on_rho * p.um_per_px/UM_PER_CM
         compton_mu_on_rho_t = compton_mu_on_rho * p.um_per_px/UM_PER_CM
+
+        # Scatter, updating Rayleigh and Compton intensity maps.
+        imap_rm *= -expm1(-matrix_map_rm * rayleigh_mu_on_rho_t)
+        imap_cm *= -expm1(-matrix_map_rm * compton_mu_on_rho_t)
+
+        # Now we've scattered, we use the mass attenuation coefficients of the
+        # matrix for propagation with absorption out to the detector.
+        # Rayleigh scattering intensity is evaluated at the beam energy whereas
+        # Compton is at the reduced energy determined by the scattering angle to
+        # the Maia detector element.
+
+        # Rayleigh
+        mu_on_rho_t = b.mu_on_rho(p.energy) * p.um_per_px/UM_PER_CM
+        
+        # Compton
+        compton_energy = compton_scattered_energy(p.energy, maia_d, row, col)
+        mu_on_rho_compt_t = b.mu_on_rho(compton_energy) * p.um_per_px/UM_PER_CM
+
+        # Propagate all intensity to the detector, accumulating (+) and
+        # absorbing [exp(-mu/rho rho t)] as we go.
         for i in range(imap_rm.shape[0]-1):
-#             imap_rm[i+1] += imap_rm[i] * np.exp(-matrix_map_rm[i] *
-#                                                  rayleigh_mu_on_rho_t)
-#             imap_cm[i+1] += imap_cm[i] * np.exp(-matrix_map_rm[i] *
-#                                                  compton_mu_on_rho_t)
-            imap_rm[i+1] += imap_rm[i] * np.exp(-matrix_map_rm[i] *
-                                                 rayleigh_mu_on_rho_t)
-            imap_cm[i+1] += imap_cm[i] * np.exp(-matrix_map_rm[i] *
-                                                 compton_mu_on_rho_t)
+            imap_rm[i+1] += imap_rm[i] * exp(-matrix_map_rm[i] * mu_on_rho_t)
+            imap_cm[i+1] += imap_cm[i] * exp(-matrix_map_rm[i] *
+                                              mu_on_rho_compt_t)
 
         rayleigh[col] = imap_rm[-1]
         compton[col] = imap_cm[-1]
 
     return rayleigh, compton
 
-'''
-def rayleigh_map(p, imap, angle, maia_d):
-    """Compute the maia-detector-shaped map of Rayleigh scattering from the
-    element map for a uniform incident intensity I0.
-
-    Arguments:
-    p - phantom instance (matrix plus elements)
-    imap - map of incident intensity
-    angle - stage rotation angle (degrees)
-    maia_d - maia detector instance
-
-    """
-    # imap contains the values of incident attenuated flux $F_\gamma$
-    # but this includes outside the sample, so either:
-    # 1. Get the Rayleigh scattering crosssection for air and use this outside
-    #    the sample, or
-    # 2. For now, just use the sample as a mask to zero the intensity outside
-    #    the sample.
-    # Generate a label array using scipy.ndimage and mask the parts
-    # corresponding to the label value in the 0,0 pixel of the label array
-    zero_outside_mask(imap, mask=p.el_maps['matrix'])
-    imap_r = rotate(imap, -angle)
-
-    # Get matrix map and rotate it to the same angle as the intensity map:
-    # These need to be in registration
-    matrix_map = zero_outside_circle(p.el_maps['matrix'])
-    matrix_map_r = rotate(matrix_map, -angle)
-
-    rayleigh = np.zeros(maia_d.shape[1])    # 1d accumulator
-
-    # Iterate over maia detector elements in theta, i.e. maia columns
-    # This should be parallelizable
-    row = 7
-    for col in range(maia_d.cols):
-        # Get angle to rotate maps so that propagation toward detector plane
-        # corresponds with direction to maia detector element
-        delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
-        delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
-
-        # For every maia detector element, get the solid angle (parallel here?)
-        # First orient the intensity map toward the maia element
-        # TODO: check sign of delta: +ve or -ve?
-        imap_rm = rotate(imap_r, -delta_theta_x)
-        matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
-
-        # Rotate the geometry so that the detector is on the bottom, so we can
-        # integrate by stepping through the row indices.
-        imap_rm = np.rot90(imap_rm)
-        matrix_map_rm = np.rot90(matrix_map_rm)
-
-        # Get the contribution to Rayleigh scattering from each element in the
-        # matrix compound and sum these.
-        # Get the Rayleigh mass attenuation coefficient (cm2/g)
-        rayleigh_mu_on_rho, _compton_mu_on_rho = \
-            rayleigh_compton_mu_on_rho(p, maia_d, row, col)
-    
-        # Now, accumulate all intensity to the detector, with absorption
-        # mu_on_rho_t = mu_on_rho * p.um_per_px/UM_PER_CM
-        #     (cm3/g) =   (cm2/g) * cm
-        mu_on_rho_t = rayleigh_mu_on_rho * p.um_per_px/UM_PER_CM
-        for i in range(imap_rm.shape[0]-1):
-            imap_rm[i+1] += imap_rm[i] * np.exp(-matrix_map_rm[i] * mu_on_rho_t)
-
-        """
-        plt.subplot(121)
-        plt.imshow(matrix_map_rm, vmin=None, vmax=None,
-                   interpolation='nearest', origin='upper', cmap='gray')
-        plt.subplot(122)
-        im = plt.imshow(imap_rm, vmax=2, # vmin=0.88, vmax=imap_r.max(),
-                   interpolation='nearest', origin='upper', cmap='gray')
-        ax = plt.gca()
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.1)
-
-        plt.colorbar(im, cax=cax)
-        plt.show()
-        """
-
-        rayleigh[col] = imap_rm[-1].sum()
-
-    return rayleigh
-'''
 
 def edge_map(p, i_map, el, angle, maia_d):
     """Compute the maia-detector-shaped map of K-edge scattering from the
@@ -458,7 +421,8 @@ if __name__ == '__main__':
     DATA_DIR = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\tmm_model\data'
     os.chdir(DATA_DIR)
 
-    anglesfile = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\commands\angles.txt'
+    anglesfile = \
+        r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\commands\angles.txt'
 
     '''
     # split golosio into elements+matrix
@@ -467,23 +431,22 @@ if __name__ == '__main__':
     '''
 
     '''
-    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0, energy=1)
+    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0,
+                          energy=1)
     project(p, 'a', anglesfile)
     '''
 
     '''
-    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0, energy=15)
+    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0,
+                          energy=15)
     map_and_write(p, 15)
     '''
 
     p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
 
-#     print brain_attenuation.brain_icru44_composition['O'].fraction
-
     angle = 0.0
     i_map = absorption_map(p, angle, I0=1.0)
     maia_d = maia.Maia()
-#     muR, muC = rayleigh_compton_mu_on_rho(p, maia_d, row=6, col=0)
     r_map, c_map = rayleigh_compton_map(p, i_map, angle, maia_d)
 
     plt.subplot(211)
