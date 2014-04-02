@@ -137,6 +137,9 @@ def rayleigh_compton_mu_on_rho(p, maia_d, row, col):
 
     b = brain_attenuation()                     # attenuation data object
     compound = b.brain_icru44_composition       # elemental data for brain
+
+    # Get the contribution to Rayleigh and Compton scattering from each
+    # element in the matrix compound and sum these.
     rayleigh = 0.0
     compton = 0.0
     for el in compound:
@@ -176,9 +179,10 @@ def compton_scattered_energy(energy_in, maia_d, row, col):
     # Get polar scattering angle (theta) to detector element
     y, x = maia_d.yx(row, col)
     theta = pi/2 + np.arctan(maia_d.d_mm/np.hypot(x, y))
-    energy_out = 1.0 / (1.0/energy_in +
-                        (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
-    return energy_out
+
+    # energy_out = 1.0 / (1.0/energy_in +
+    #                     (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
+    return xrl.ComptonEnergy(energy_in, theta)
 
 
 def rayleigh_compton_map(p, imap, angle, maia_d):
@@ -213,9 +217,11 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
     # These need to be in registration
     matrix_map = zero_outside_circle(p.el_maps['matrix'])
     matrix_map_r = rotate(matrix_map, -angle)
+    del matrix_map
 
-    rayleigh = np.zeros((maia_d.shape[1], imap_r.shape[0]))    # 2d accumulator
-    compton = np.zeros((maia_d.shape[1], imap_r.shape[0]))     # 2d accumulator
+    # 2d accumulators for results
+    rayleigh = np.empty((maia_d.shape[1], imap_r.shape[0]))
+    compton = np.empty((maia_d.shape[1], imap_r.shape[0]))
 
     # Iterate over maia detector elements in theta, i.e. maia columns
     # This should be parallelizable
@@ -227,7 +233,7 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
         delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
 
         # For every maia detector element, get the solid angle (parallelize?)
-        # First orient the intensity map toward the maia element
+        # Orient the maps toward the maia element
         # TODO: check sign of delta: +ve or -ve?
         imap_rm = rotate(imap_r, -delta_theta_x)
         matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
@@ -243,11 +249,10 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
         # Simulate scattering event:
         # Get intensity scattered toward Maia element using scattering cross
         # sections provided by xraylib. These are in the form of mass
-        # attenuation coefficients, so .
+        # attenuation coefficients, so the next steps propagate through one
+        # voxel to determine the scattered intensity.
 
-        # Get the contribution to Rayleigh and Compton scattering from each
-        # element in the matrix compound and sum these.
-        # Get the Rayleigh and Compton mass attenuation coefficients (cm2/g)
+        # Rayleigh and Compton mass attenuation coefficients (cm2/g)
         rayleigh_mu_on_rho, compton_mu_on_rho = \
             rayleigh_compton_mu_on_rho(p, maia_d, row, col)
 
@@ -267,10 +272,10 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
         # Compton is at the reduced energy determined by the scattering angle to
         # the Maia detector element.
 
-        # Rayleigh
+        # Rayleigh:
         mu_on_rho_t = b.mu_on_rho(p.energy) * p.um_per_px/UM_PER_CM
         
-        # Compton
+        # Compton:
         compton_energy = compton_scattered_energy(p.energy, maia_d, row, col)
         mu_on_rho_compt_t = b.mu_on_rho(compton_energy) * p.um_per_px/UM_PER_CM
 
@@ -281,13 +286,14 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
             imap_cm[i+1] += imap_cm[i] * exp(-matrix_map_rm[i] *
                                               mu_on_rho_compt_t)
 
+        # Store the result for this detector element.
         rayleigh[col] = imap_rm[-1]
         compton[col] = imap_cm[-1]
 
     return rayleigh, compton
 
 
-def edge_map(p, i_map, el, angle, maia_d):
+def edge_map(p, imap, el, angle, maia_d):
     """Compute the maia-detector-shaped map of K-edge scattering from the
     element map for a uniform incident intensity I0
 
@@ -304,37 +310,72 @@ def edge_map(p, i_map, el, angle, maia_d):
 
     Arguments:
     p - phantom instance (matrix plus elements)
-    i_map - absorption (intensity) map
+    imap - map of incident intensity
     el - element to consider, e.g. 'Fe' (string)
-    angle - degrees
+    angle - stage rotation angle (degrees)
     maia_d - maia detector instance
 
+    Returns:
+    The accumulated flux in Maia detector row 7 for the requested edge
+
     """
-    # i_map contains the values of incident attenuated flux $F_\gamma$
-    rho = rotate(p.el_map[el], -angle)
-    i_map_rotated = rotate(i_map, -angle)
-    rayleigh_map = np.zeros(maia_d.shape)   # 1d accumulator
+    b = brain_attenuation()                     # attenuation data object
 
-    # get angle to rotate i_map so that propagation toward detector plane
-    # corresponds with direction to maia detector element
-    row, col = (0, 0)   # Just do this for element (0, 0) for the moment
-    delta = maia_d.maia_data.yx_angles_radian(row, col)
-    omega = maia_d.maia_data.solid_angle(row, col)
+    # imap contains the values of incident attenuated flux $F_\gamma$
+    # but this includes outside the sample, so either:
+    # 1. Get the Rayleigh scattering crosssection for air and use this outside
+    #    the sample, or
+    # 2. For now, just use the sample as a mask to zero the intensity outside
+    #    the sample.
+    # Generate a label array using scipy.ndimage and mask the parts
+    # corresponding to the label value in the 0,0 pixel of the label array
+    imap_r = rotate(imap, -angle)
 
-    # for every maia detector element, get the solid angle (parallel loop here?)
-    # First orient the intensity map toward the maia element
-    #TODO: check sign of delta: +ve or -ve?
-    rotated_map = rotate(rho, -delta)
-    
-    # Generate the initial fluorescence intensity
-    # Start with the highest-energy edge or a mean factor accounting for all
-    # edges first (move to other edges later?)
-    # Use constant 1.0 for the \tau \omega B term.
-    # However, this implies that an energy downconversion takes place to another
-    # edge energy (K_\alpha, or a mean edge energy)
-    # fluoro yield, Rayleigh and Compton cross-sections
+    # Get matrix map and the map for the requested element and rotate them to
+    # the same angle as the intensity map:
+    # These all need to be in registration
+    matrix_map = zero_outside_circle(p.el_maps['matrix'])
+    matrix_map_r = rotate(matrix_map, -angle)
+    del matrix_map
+    edge_map = zero_outside_circle(p.el_maps[el])
+    edge_map_r = rotate(edge_map, -angle)
+    del edge_map
 
-    #edge =
+    # 2d accumulator for results
+    edge = np.empty((maia_d.shape[1], imap_r.shape[0]))
+
+    # Iterate over maia detector elements in theta, i.e. maia columns
+    # This should be parallelizable
+    row = 7
+    for col in range(maia_d.cols):
+        # Get angle to rotate maps so that propagation toward detector plane
+        # corresponds with direction to maia detector element
+        delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
+        delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
+
+        # For every maia detector element, get the solid angle (parallelize?)
+        # Orient the maps toward the maia element
+        # TODO: check sign of delta: +ve or -ve?
+        imap_rm = rotate(imap_r, -delta_theta_x)
+        matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
+        edge_map_rm = rotate(edge_map_r, -delta_theta_x)
+
+        # Rotate the geometry so that the detector is on the bottom, so we can
+        # integrate by stepping through the row indices.
+        imap_rm = np.rot90(imap_rm)
+        matrix_map_rm = np.rot90(matrix_map_rm)
+        edge_map_rm = np.rot90(edge_map_rm)
+
+        # Make a copy of the intensity map for the edge energy.
+        imap_em = imap_rm.copy()
+
+        # Simulate fluorescence event:
+        # Generate the initial fluorescence intensity
+        # Start with the highest-energy edge or a mean factor accounting for all
+        # edges first (move to other edges later?)
+        # Use constant 1.0 for the \tau \omega B term.
+
+
     edge = 1
 
     return edge
