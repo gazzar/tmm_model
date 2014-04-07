@@ -163,6 +163,34 @@ def rayleigh_compton_mu_on_rho(p, maia_d, row, col):
     return rayleigh, compton
 
 
+def fluoro_mass_atten(p, el_Z, maia_d, row, col):
+    """Return the fluorescence mass attenuation coefficient (cm2/g)
+    for the specified element and solid angle for the Maia detector
+    element indexed by row, col. 
+
+    Arguments:
+    p - phantom instance (matrix plus elements)
+    el_Z - Z of element el
+    maia_d - maia detector object instance
+    row, col - maia detector element indices
+
+    Returns:
+    fluorescence mass attenuation coefficient (cm2/g)
+
+    """
+    omega = maia_d.solid_angle(row, col)
+    
+    line = xrl.KA_LINE
+    
+    # CS_FluorLine_Kissel_Cascade is the XRF cross section Q_{i,YX} in Eq. (12)
+    # of Schoonjans et al.
+    # Units of the following expression:
+    # solid angle * differential mass attenuation coefft
+    # sterad/sterad * cm2/g
+    fluoro = omega/4/pi * xrl.CS_FluorLine_Kissel_Cascade(el_Z, line, p.energy)
+    return fluoro
+
+
 def compton_scattered_energy(energy_in, maia_d, row, col):
     """Energy of the Compton photons scattered into the direction of the Maia
     detector element.
@@ -204,13 +232,6 @@ def rayleigh_compton_map(p, imap, angle, maia_d):
     b = brain_attenuation()                     # attenuation data object
 
     # imap contains the values of incident attenuated flux $F_\gamma$
-    # but this includes outside the sample, so either:
-    # 1. Get the Rayleigh scattering crosssection for air and use this outside
-    #    the sample, or
-    # 2. For now, just use the sample as a mask to zero the intensity outside
-    #    the sample.
-    # Generate a label array using scipy.ndimage and mask the parts
-    # corresponding to the label value in the 0,0 pixel of the label array
     imap_r = rotate(imap, -angle)
 
     # Get matrix map and rotate it to the same angle as the intensity map:
@@ -322,24 +343,24 @@ def edge_map(p, imap, el, angle, maia_d):
     b = brain_attenuation()                     # attenuation data object
 
     # imap contains the values of incident attenuated flux $F_\gamma$
-    # but this includes outside the sample, so either:
-    # 1. Get the Rayleigh scattering crosssection for air and use this outside
-    #    the sample, or
-    # 2. For now, just use the sample as a mask to zero the intensity outside
-    #    the sample.
-    # Generate a label array using scipy.ndimage and mask the parts
-    # corresponding to the label value in the 0,0 pixel of the label array
     imap_r = rotate(imap, -angle)
 
     # Get matrix map and the map for the requested element and rotate them to
     # the same angle as the intensity map:
-    # These all need to be in registration
+    # These both need to be in registration
     matrix_map = zero_outside_circle(p.el_maps['matrix'])
     matrix_map_r = rotate(matrix_map, -angle)
     del matrix_map
     edge_map = zero_outside_circle(p.el_maps[el])
     edge_map_r = rotate(edge_map, -angle)
     del edge_map
+
+    # Get Z for the fluorescing element and check that its K_alpha is below the
+    # incident energy.
+    el_Z = xrl.SymbolToAtomicNumber(el)
+    line = xrl.KA_LINE
+    k_alpha_energy = xrl.LineEnergy(el_Z, line)
+    assert k_alpha_energy < p.energy
 
     # 2d accumulator for results
     edge = np.empty((maia_d.shape[1], imap_r.shape[0]))
@@ -366,23 +387,46 @@ def edge_map(p, imap, el, angle, maia_d):
         matrix_map_rm = np.rot90(matrix_map_rm)
         edge_map_rm = np.rot90(edge_map_rm)
 
-        # Make a copy of the intensity map for the edge energy.
-        imap_em = imap_rm.copy()
-
         # Simulate fluorescence event:
         # Generate the initial fluorescence intensity
         # Start with the highest-energy edge or a mean factor accounting for all
         # edges first (move to other edges later?)
-        # Use constant 1.0 for the \tau \omega B term.
 
+        # Fluorescence crosssection (cm2/g)
+        fluoro_mu_on_rho = fluoro_mass_atten(p, el_Z, maia_d, row, col)
 
-    edge = 1
+        # Maybe I should also get the crosssections for all the brain tissue
+        # matrix elements here and track their K_alpha emissions along with the
+        # element of interest - not for the moment.
+
+        # Scale for propagation over one voxel
+        # *_mu_on_rho_t = *_mu_on_rho * p.um_per_px/UM_PER_CM
+        #     (cm3/g) =   (cm2/g) * cm
+        fluoro_mu_on_rho_t = fluoro_mu_on_rho * p.um_per_px/UM_PER_CM
+        
+        #TODO: remember to scale contribution by the elemental density
+        # Fluoresce, updating the fluorescence intensity map.
+        imap_rm *= -expm1(-edge_map_rm * fluoro_mu_on_rho_t)
+
+        # Now we've fluoresced, we use the mass attenuation coefficients of the
+        # matrix for propagation with absorption out to the detector, but this
+        # is at the K_alpha energy of the fluorescing element.
+        mu_on_rho_t = b.mu_on_rho(k_alpha_energy) * p.um_per_px/UM_PER_CM
+
+        # Propagate all intensity to the detector, accumulating (+) and
+        # absorbing [exp(-mu/rho rho t)] as we go.
+        for i in range(imap_rm.shape[0]-1):
+            imap_rm[i+1] += imap_rm[i] * exp(-matrix_map_rm[i] * mu_on_rho_t)
+
+        # Store the result for this detector element.
+        edge[col] = imap_rm[-1]
 
     return edge
 
 
 def project_and_write(p, el, el_map0, algorithm, anglelist):
     """Project and write sinogram for element map el
+    Prepends s_ to the filename.
 
     Arguments:
     p - phantom object
@@ -424,7 +468,8 @@ def project_and_write(p, el, el_map0, algorithm, anglelist):
 
 
 def map_and_write(p, angle):
-    """Project and write sinogram for element map el
+    """Project and write sinogram for element map el.
+    Prepends m_ to the filename.
 
     Arguments:
     p - phantom object
@@ -434,7 +479,7 @@ def map_and_write(p, angle):
     im = absorption_map(p, angle)
 
     # Get the filename that matches the glob pattern for this element
-    # and prepend s_ to it
+    # and prepend m_ to it
     pattern = p.filename
     el = 'matrix'
     filenames = ['{}-{}{}'.format(
@@ -483,6 +528,7 @@ if __name__ == '__main__':
     map_and_write(p, 15)
     '''
 
+    '''
     p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
 
     angle = 0.0
@@ -494,4 +540,16 @@ if __name__ == '__main__':
     imshow(r_map)
     plt.subplot(212)
     imshow(c_map)
+    plt.show()
+    '''
+
+    p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
+
+    angle = 0.0
+    i_map = absorption_map(p, angle, I0=1.0)
+    maia_d = maia.Maia()
+    el = 'Fe'
+    e_map = edge_map(p, i_map, el, angle, maia_d)
+
+    imshow(e_map)
     plt.show()
