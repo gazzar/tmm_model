@@ -16,6 +16,7 @@ data structure defined in a yaml file.
 
 import os
 import numpy as np
+from skimage.io import imread
 from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
@@ -210,7 +211,7 @@ class Phantom2d(object):
         integer array
 
         """
-        im = read_tiff32(filename)
+        im = imread(filename, as_grey=True)
         self.rows, self.cols = im.shape
         self.um_per_px = 1.0
         return im
