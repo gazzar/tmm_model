@@ -86,11 +86,12 @@ def zero_outside_mask(im, mask):
     im[la==la[0,0]] = 0.0
 
 
-def imshow(im, show=False):
+def imshow(im, show=False, cmap='gray', **kwargs):
     """Display image in a window.
 
     """
-    plt.imshow(im, origin='upper', interpolation='nearest', cmap='gray')
+    plt.imshow(im, origin='upper', interpolation='nearest', cmap=cmap,
+               **kwargs)
     plt.colorbar()
     if show:
         plt.show()
