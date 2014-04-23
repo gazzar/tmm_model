@@ -24,8 +24,9 @@ import version
 description = textwrap.dedent("""\
     {filename} -
     A commandline tool to generate a sinogram from a tiff or tiffs.
-    Example use:
-    python {filename} path/golosio*.tiff -a angles.txt
+    Examples:
+    python {filename} -a angles.txt path/golosio*.tiff
+    python {filename} -t f -e 12.0 -a angles.txt path/golosio*.tiff
     """.format(filename=__file__))
 
 parser = argparse.ArgumentParser(
@@ -35,12 +36,17 @@ parser = argparse.ArgumentParser(
 parser.add_argument('filepattern', action='store',
                     help=textwrap.dedent('''e.g. a-*.tiff reads
                                           a-Ca.tiff, a-Zn.tiff, etc.'''))
-parser.add_argument('--algorithm', action='store', default='r',
-                    help=textwrap.dedent('algorithm (default r=radon)'))
+parser.add_argument('-t', '--algorithm', action='store', default='r',
+                    help=textwrap.dedent('''algorithm [r|g|a|f] (default
+                                          r=radon)'''))
 parser.add_argument('-a', '--anglelist', action='store', default='angles.txt',
                     help=textwrap.dedent('''filename of textfile containing
                                           list of projection angles, e.g.
                                           angles.txt'''))
+parser.add_argument('-s', '--scale', type=float, default=10.0,
+                    help='scale (um/px) (default 10.0)')
+parser.add_argument('-e', '--energy', type=float, default=15.0,
+                    help='energy (keV) (default 15.0)')
 
 args = vars(parser.parse_args())
 
@@ -48,6 +54,8 @@ args = vars(parser.parse_args())
 filepattern = args['filepattern']
 algorithm = args['algorithm']
 anglelist = args['anglelist']
+scale = args['scale']
+energy = args['energy']
 
-p = phantom.Phantom2d(filename=filepattern)
+p = phantom.Phantom2d(filename=filepattern, um_per_px=scale, energy=energy)
 projection.project(p, algorithm, anglelist)
