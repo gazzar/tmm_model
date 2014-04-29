@@ -21,7 +21,7 @@ class brain_attenuation(object):
     """A class wrapping the NIST ICRU_44 data for brain tissue
     Example:
     b = brain_data()
-    b.mu_on_rho(13)
+    b.ma(13)
 
     Note: Density of wet brain matter (C_1.4 H_1 O_7.1 N_0.2) is 1.04 g/cm^3
 
@@ -73,7 +73,7 @@ class brain_attenuation(object):
         self.energy_min = self.brain_table.Energy_MeV.values.min()
         self.energy_max = self.brain_table.Energy_MeV.values.max()
 
-    def mu_on_rho(self, energy):
+    def ma(self, energy):
         """Return mu/rho (in cm^2/g)
         See http://stackoverflow.com/questions/20941973/python-pandas-interpolate-with-new-x-axis
 
@@ -99,31 +99,31 @@ class brain_attenuation(object):
 
 if __name__ == "__main__":
     b = brain_attenuation()
-    print b.mu_on_rho(1)
-    print b.mu_on_rho(1.01)
-    print b.mu_on_rho(1.07)
+    print b.ma(1)
+    print b.ma(1.01)
+    print b.ma(1.07)
     print 
-    print b.mu_on_rho(1.073)
-    print b.mu_on_rho(2.145)
+    print b.ma(1.073)
+    print b.ma(2.145)
     print 
-    print b.mu_on_rho(2.15)
-    print b.mu_on_rho(2.47)
+    print b.ma(2.15)
+    print b.ma(2.47)
     print 
-    print b.mu_on_rho(2.475)
-    print b.mu_on_rho(2.82)
+    print b.ma(2.475)
+    print b.ma(2.82)
     print 
-    print b.mu_on_rho(2.83)
-    print b.mu_on_rho(3.6)
+    print b.ma(2.83)
+    print b.ma(3.6)
     print 
-    print b.mu_on_rho(3.61)
-    print b.mu_on_rho(21)
+    print b.ma(3.61)
+    print b.ma(21)
 
     # print b.brain_table.mu_cm2_g.values
 
     import matplotlib.pyplot as plt
 #     xs = b.brain_table.Energy_MeV.values
     xs = np.logspace(-3, np.log10(b.brain_table.Energy_MeV.values[-1]-1), 10000)
-    ys = np.array([b.mu_on_rho(x*1000) for x in xs])
+    ys = np.array([b.ma(x*1000) for x in xs])
 
     plt.loglog(xs, ys, '.-')
     plt.show()

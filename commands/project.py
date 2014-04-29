@@ -37,8 +37,9 @@ parser.add_argument('filepattern', action='store',
                     help=textwrap.dedent('''e.g. a-*.tiff reads
                                           a-Ca.tiff, a-Zn.tiff, etc.'''))
 parser.add_argument('-t', '--algorithm', action='store', default='r',
-                    help=textwrap.dedent('''algorithm [r|g|a|f] (default
-                                          r=radon)'''))
+                    choices=['f','r','c'],
+                    help=textwrap.dedent(
+                    '''algorithm {f=fluoro, r=rayleigh(default), c=compton}'''))
 parser.add_argument('-a', '--anglelist', action='store', default='angles.txt',
                     help=textwrap.dedent('''filename of textfile containing
                                           list of projection angles, e.g.

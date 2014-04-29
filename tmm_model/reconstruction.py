@@ -15,13 +15,11 @@ from helpers import write_tiff32
 import glob, fnmatch
 
 
-def reconstruct_and_write(el, el_map0, pattern, algorithm, anglelist=None):
+def reconstruct_and_write(p, el, algorithm, anglelist=None):
     """Reconstruct from a sinogram
 
     Arguments:
     el - name of current element, e.g. 'Fe'
-    el_map0 - numpy float32 array with elemental abundance of el 
-    pattern - glob pattern of filenames which match the current one
     algorithm - one of f, s
         f - for conventional filtered backprojection with ramp filter
             [skimage iradon()]
@@ -31,7 +29,9 @@ def reconstruct_and_write(el, el_map0, pattern, algorithm, anglelist=None):
     """
     assert algorithm in ['f', 's']
 
-    sinogram = np.rot90(el_map0).astype(np.float64)
+    el_map0 = p.el_maps[el]
+#    sinogram = np.rot90(el_map0).astype(np.float64)
+    sinogram = el_map0.astype(np.float64)
     if algorithm == 'f':
         # conventional filtered backprojection
         im = iradon(sinogram, anglelist, circle=True)
@@ -42,6 +42,7 @@ def reconstruct_and_write(el, el_map0, pattern, algorithm, anglelist=None):
 
     # Get the filename that matches the glob pattern for this element
     # and prepend r_ to it
+    pattern = p.filename
     filenames = ['{}-{}{}'.format(
                    '-'.join(f.split('-')[:-1]), el, os.path.splitext(f)[1])
                  for f in glob.glob(pattern)]
@@ -59,17 +60,18 @@ def reconstruct(p, algorithm, anglesfile=None):
     else:
         anglelist = np.loadtxt(anglesfile)
     for el in p.el_maps:
-        el_map0 = p.el_maps[el]
-        reconstruct_and_write(el, el_map0, p.filename, algorithm, anglelist)
+        reconstruct_and_write(p, el, algorithm, anglelist)
 
 
 if __name__ == '__main__':
     import phantom
 
-    os.chdir(r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\tmm_model\data')
+    BASE = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model'
+
+    os.chdir(os.path.join(BASE, r'tmm_model\data'))
 
     p = phantom.Phantom2d(filename='s_golosio*.tiff')
 
-    anglesfile = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\commands\angles.txt'
+    anglesfile = os.path.join(BASE, r'commands\angles.txt')
     reconstruct(p, 'f', anglesfile)
 #    reconstruct(p, 's', anglesfile)

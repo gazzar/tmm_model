@@ -106,5 +106,7 @@ def rotate(im, angle):
     angle - rotation angle in degrees
 
     """
+    assert issubclass(im.dtype.type, np.floating)
+
     scale = im.max()
     return st.rotate(im/scale, angle) * scale
