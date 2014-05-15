@@ -34,11 +34,11 @@ from maia import Maia
 
 UM_PER_CM = 1e4
 J_PER_KEV = 1e3 * sc.eV
-deg_to_rad = lambda x: x/180*pi
-rad_to_deg = lambda x: x*180/pi
+deg_to_rad = lambda x: x / 180 * pi
+rad_to_deg = lambda x: x * 180 / pi
 
-brain = brain_attenuation()     # attenuation data object singleton
-maia_d = Maia()                 # Maia detector object singleton
+brain = brain_attenuation()  # attenuation data object singleton
+maia_d = Maia()  # Maia detector object singleton
 
 
 def project_with_absorption(p, matrix_map, anglelist):
@@ -91,18 +91,18 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
     sinogram = np.empty((len(anglelist), p.cols))
     for i, angle in enumerate(anglelist):
         if show_progress:
-            sys.stdout.write("\r{:.0%}".format(float(i)/len(anglelist)))
+            sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
             sys.stdout.flush()
-        i_map = absorption_map(p, angle, I0=1.0)
+        i_map = illumination_map(p, angle, I0=1.0)
         e_map = emission_map(event_type, p, i_map, angle, el)
         sinogram[i] = e_map.sum(axis=0)
     return sinogram
 
 
-def absorption_map(p, angle, I0=1.0):
+def illumination_map(p, angle, I0=1.0):
     """Generates the image-sized map of intensity at each 2d pixel for a given
-    angle accounting for absorption by the element, or compound in the case of
-    the matrix.
+    angle accounting for absorption at the incident energy by the element,
+    or compound in the case of the matrix.
     Use the Mass Attenuation Coefficient data from NIST XAAMDI database
     http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
 
@@ -129,7 +129,7 @@ def absorption_map(p, angle, I0=1.0):
     return i_map
 
 
-def rayleigh_compton_ma(event_type, p, row, col):
+def scattering_ma(event_type, p, row, col):
     """Return the Rayleigh or Compton mass attenuation coefficients (cm2/g)
     for icru44 brain tissue with density described by the 'matrix' map of
     phantom p into the Maia detector element indexed by row, col.
@@ -202,7 +202,8 @@ def fluoro_ma(p, el_Z, row, col):
     # Units of the following expression:
     # solid angle * differential mass attenuation coefft
     # sterad/sterad * cm2/g
-    fluoro = omega/4/pi * xrl.CS_FluorLine_Kissel_Cascade(el_Z, line, p.energy)
+    fluoro = omega / 4 / pi * xrl.CS_FluorLine_Kissel_Cascade(el_Z, line,
+                                                              p.energy)
     return fluoro
 
 
@@ -225,201 +226,6 @@ def compton_scattered_energy(energy_in, row, col):
     # energy_out = 1.0 / (1.0/energy_in +
     #                     (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
     return xrl.ComptonEnergy(energy_in, theta)
-
-
-# noinspection PyNoneFunctionAssignment
-def rayleigh_compton_map(p, imap, angle):
-    """Compute the Rayleigh and Compton scattering contributions into a row of
-    Maia detector elements from the tissue matrix absorption map
-    p.el_maps['matrix'] given an incident intensity map imap.
-
-    Arguments:
-    p - phantom instance (matrix plus elements)
-    imap - map of incident intensity
-    angle - stage rotation angle (degrees)
-
-    Returns:
-    The accumulated flux in Maia detector row 7
-    (rayleigh, compton)
-
-    """
-    # imap contains the values of incident attenuated flux $F_\gamma$
-    imap_r = rotate(imap, -angle)
-
-    # Get matrix map and rotate it to the same angle as the intensity map:
-    # These need to be in registration
-    matrix_map = zero_outside_circle(p.el_maps['matrix'])
-    matrix_map_r = rotate(matrix_map, -angle)
-    del matrix_map
-
-    # 2d accumulators for results
-    rayleigh = np.empty((maia_d.shape[1], imap_r.shape[0]))
-    compton = np.empty((maia_d.shape[1], imap_r.shape[0]))
-
-    # Iterate over maia detector elements in theta, i.e. maia columns
-    # This should be parallelizable
-    row = 7
-    for col in range(maia_d.cols):
-        # Get angle to rotate maps so that propagation toward detector plane
-        # corresponds with direction to maia detector element
-        delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
-        delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
-
-        # For every maia detector element, get the solid angle (parallelize?)
-        # Orient the maps toward the maia element
-        # TODO: check sign of delta: +ve or -ve?
-        imap_rm = rotate(imap_r, -delta_theta_x)
-        matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
-
-        # Rotate the geometry so that the detector is on the bottom, so we can
-        # integrate by stepping through the row indices.
-        imap_rm = np.rot90(imap_rm)
-        matrix_map_rm = np.rot90(matrix_map_rm)
-
-        # Make a copy of the intensity map for the Compton component.
-        imap_cm = imap_rm.copy()
-
-        # Simulate scattering event:
-        # Get intensity scattered toward Maia element using scattering cross
-        # sections provided by xraylib. These are in the form of mass
-        # attenuation coefficients, so the next steps propagate through one
-        # voxel to determine the scattered intensity.
-
-        # Rayleigh and Compton mass attenuation coefficients (cm2/g)
-        rayleigh_ma = rayleigh_compton_ma('rayleigh', p, row, col)
-        compton_ma = rayleigh_compton_ma('compton', p, row, col)
-
-        # Scale for propagation over one voxel
-        # *_ma_t = *_ma * p.um_per_px/UM_PER_CM
-        #     (cm3/g) =   (cm2/g) * cm
-        rayleigh_ma_t = rayleigh_ma * p.um_per_px / UM_PER_CM
-        compton_ma_t = compton_ma * p.um_per_px / UM_PER_CM
-
-        # Scatter, updating Rayleigh and Compton intensity maps.
-        imap_rm *= -expm1(-matrix_map_rm * rayleigh_ma_t)
-        imap_cm *= -expm1(-matrix_map_rm * compton_ma_t)
-
-        # Now we've scattered, we use the mass attenuation coefficients of the
-        # matrix for propagation with absorption out to the detector.
-        # Rayleigh scattering intensity is evaluated at the beam energy whereas
-        # Compton is at the reduced energy determined by the scattering angle to
-        # the Maia detector element.
-
-        # Rayleigh:
-        ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
-
-        # Compton:
-        compton_energy = compton_scattered_energy(p.energy, row, col)
-        ma_compt_t = brain.ma(
-            compton_energy) * p.um_per_px / UM_PER_CM
-
-        # Propagate all intensity to the detector, accumulating (+) and
-        # absorbing [exp(-mu/rho rho t)] as we go.
-        for i in range(imap_rm.shape[0] - 1):
-            imap_rm[i + 1] += imap_rm[i] * exp(-matrix_map_rm[i] * ma_t)
-            imap_cm[i + 1] += imap_cm[i] * exp(-matrix_map_rm[i] *
-                                               ma_compt_t)
-
-        # Store the result for this detector element.
-        rayleigh[col] = imap_rm[-1]
-        compton[col] = imap_cm[-1]
-
-    return rayleigh, compton
-
-
-def fluoro_map(p, imap, el, angle):
-    """Compute the maia-detector-shaped map of K-edge fluorescence from the
-    element map for a uniform incident intensity I0
-
-    Arguments:
-    p - phantom instance (matrix plus elements)
-    imap - map of incident intensity
-    el - element to consider, e.g. 'Fe' (string)
-    angle - stage rotation angle (degrees)
-
-    Returns:
-    The accumulated flux in Maia detector row 7 for the requested edge
-
-    """
-    # imap contains the values of incident attenuated flux $F_\gamma$
-    imap_r = rotate(imap, -angle)
-
-    # Get matrix map and the map for the requested element and rotate them to
-    # the same angle as the intensity map:
-    # These both need to be in registration
-    matrix_map = zero_outside_circle(p.el_maps['matrix'])
-    matrix_map_r = rotate(matrix_map, -angle)
-    del matrix_map
-    edge_map = zero_outside_circle(p.el_maps[el])
-    edge_map_r = rotate(edge_map, -angle)
-    del edge_map
-
-    # Get Z for the fluorescing element and check that its K_alpha is below the
-    # incident energy.
-    el_Z = xrl.SymbolToAtomicNumber(el)
-    line = xrl.KA_LINE
-    k_alpha_energy = xrl.LineEnergy(el_Z, line)
-    assert k_alpha_energy < p.energy
-
-    # 2d accumulator for results
-    edge = np.empty((maia_d.shape[1], imap_r.shape[0]))
-
-    # Iterate over maia detector elements in theta, i.e. maia columns
-    # This should be parallelizable
-    row = 7
-    for col in range(maia_d.cols):
-        # Get angle to rotate maps so that propagation toward detector plane
-        # corresponds with direction to maia detector element
-        delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
-        delta_theta_x = rad_to_deg(delta_theta_yx_radian[1])
-
-        # For every maia detector element, get the solid angle (parallelize?)
-        # Orient the maps toward the maia element
-        # TODO: check sign of delta: +ve or -ve?
-        imap_rm = rotate(imap_r, -delta_theta_x)
-        matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
-        edge_map_rm = rotate(edge_map_r, -delta_theta_x)
-
-        # Rotate the geometry so that the detector is on the bottom, so we can
-        # integrate by stepping through the row indices.
-        imap_rm = np.rot90(imap_rm)
-        matrix_map_rm = np.rot90(matrix_map_rm)
-        edge_map_rm = np.rot90(edge_map_rm)
-
-        # Simulate fluorescence event:
-        # Generate the initial fluorescence intensity
-        # Start with the highest-energy edge or a mean factor accounting for all
-        # edges first (move to other edges later?)
-
-        # Fluorescence crosssection (cm2/g)
-        fluoro_mac = fluoro_ma(p, el_Z, row, col)
-
-        # Maybe I should also get the crosssections for all the brain tissue
-        # matrix elements here and track their K_alpha emissions along with the
-        # element of interest - not for the moment.
-
-        # Scale for propagation over one voxel
-        # *_ma_t = *_ma * p.um_per_px/UM_PER_CM
-        #     (cm3/g) =   (cm2/g) * cm
-        fluoro_ma_t = fluoro_mac * p.um_per_px / UM_PER_CM
-
-        # Fluoresce, updating the fluorescence intensity map.
-        imap_rm *= -expm1(-edge_map_rm * fluoro_ma_t)
-
-        # Now we've fluoresced, we use the mass attenuation coefficients of the
-        # matrix for propagation with absorption out to the detector, but this
-        # is at the K_alpha energy of the fluorescing element.
-        ma_t = brain.ma(k_alpha_energy) * p.um_per_px / UM_PER_CM
-
-        # Propagate all intensity to the detector, accumulating (+) and
-        # absorbing [exp(-mu/rho rho t)] as we go.
-        for i in range(imap_rm.shape[0] - 1):
-            imap_rm[i + 1] += imap_rm[i] * exp(-matrix_map_rm[i] * ma_t)
-
-        # Store the result for this detector element.
-        edge[col] = imap_rm[-1]
-
-    return edge
 
 
 def emission_map(event_type, p, i_map, angle, el=None):
@@ -492,28 +298,22 @@ def emission_map(event_type, p, i_map, angle, el=None):
 
             # Simulate fluorescence event:
             # Generate the initial fluorescence intensity
-            # Start with the highest-energy edge or a mean factor accounting for all
-            # edges first (move to other edges later?)
+            # Start with the highest-energy edge or a mean factor accounting for
+            # all edges first (move to other edges later?)
             mac = fluoro_ma(p, el_Z, row, col)
+
+            # Scale for propagation over one voxel
+            # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
+            #     (cm3/g) =   (cm2/g) * cm
             mac_t = mac * p.um_per_px / UM_PER_CM
+            # Generate outgoing radiation.
             imap_rm *= -expm1(-edge_map_rm * mac_t)
             del edge_map_rm
         else:
-            mac = rayleigh_compton_ma(event_type, p, row, col)
+            mac = scattering_ma(event_type, p, row, col)
             mac_t = mac * p.um_per_px / UM_PER_CM
+            # Generate outgoing radiation.
             imap_rm *= -expm1(-matrix_map_rm * mac_t)
-
-        # Maybe I should also get the crosssections for all the brain tissue
-        # matrix elements here and track their K_alpha emissions along with the
-        # element of interest - not for the moment.
-
-        # Scale for propagation over one voxel
-        # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
-        #     (cm3/g) =   (cm2/g) * cm
-        ## mac_t = mac * p.um_per_px / UM_PER_CM
-
-        # Generate outgoing radiation Scatter/fluoresce.
-        ## imap_rm *= -expm1(-edge_map_rm * mac_t)
 
         # Now we've "evented," we use the mass attenuation coefficients of the
         # matrix for propagation with absorption out to the detector, but this
@@ -552,7 +352,7 @@ def project_and_write(p, algorithm, anglelist, el='matrix'):
     """
     assert algorithm in 'frc'
 
-    event_type = {'f':'fluoro', 'r':'rayleigh', 'c':'compton'}[algorithm]
+    event_type = {'f': 'fluoro', 'r': 'rayleigh', 'c': 'compton'}[algorithm]
     im = project_sinogram(event_type, p, anglelist, el, show_progress=False)
 
     # Get the filename that matches the glob pattern for this element
@@ -562,7 +362,7 @@ def project_and_write(p, algorithm, anglelist, el='matrix'):
                      .format(base='-'.join(f.split('-')[:-1]),
                              el=el,
                              ext=os.path.splitext(f)[1])
-                for f in glob.glob(pattern)]
+                 for f in glob.glob(pattern)]
     path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
 
     # Write sinogram (absorption map)
@@ -570,7 +370,7 @@ def project_and_write(p, algorithm, anglelist, el='matrix'):
         algorithm=algorithm, base=base))
     # append r or c to -matrix suffix so sinograms read in as unique images
     if '-matrix' in s_filename:
-        s_filename = s_filename.replace('-matrix', '-matrix'+algorithm)
+        s_filename = s_filename.replace('-matrix', '-matrix' + algorithm)
     write_tiff32(s_filename, np.rot90(im, 3))  # rotate 90 deg cw
 
 
@@ -591,14 +391,13 @@ def project(p, algorithm, anglesfile):
     if algorithm == 'f':
         # fluorescence sinogram
         for el in p.el_maps:
-            if algorithm=='f' and el=='matrix':
+            if algorithm == 'f' and el == 'matrix':
                 continue
             project_and_write(p, algorithm, anglelist, el)
     else:
         # algorithm is 'r' or 'c'
         # Rayleigh or Compton scattering sinogram of matrix
         project_and_write(p, algorithm, anglelist)
-
 
 
 if __name__ == '__main__':
@@ -632,9 +431,9 @@ if __name__ == '__main__':
     p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
 
     angle = 0.0
-    i_map = absorption_map(p, angle, I0=1.0)
-    r_map = rayleigh_compton_map('rayleigh', p, i_map, angle)
-    c_map = rayleigh_compton_map('compton', p, i_map, angle)
+    i_map = illumination_map(p, angle, I0=1.0)
+    r_map = emission_map('rayleigh', p, i_map, angle)
+    c_map = emission_map('compton', p, i_map, angle)
 
     plt.subplot(211)
     imshow(r_map)
@@ -647,7 +446,7 @@ if __name__ == '__main__':
     p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
 
     angle = 0.0
-    i_map = absorption_map(p, angle, I0=1.0)
+    i_map = illumination_map(p, angle, I0=1.0)
     el = 'Fe'
     e_map = fluoro_map(p, i_map, el, angle)
 
