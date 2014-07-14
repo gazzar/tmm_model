@@ -336,27 +336,23 @@ def emission_map(event_type, p, i_map, angle, el=None):
     return accumulator
 
 
-def project_and_write(p, algorithm, anglelist, el='matrix'):
+def write_sinogram(im, p, algorithm, el='matrix'):
     """Project and write sinogram for element map el
-    Prepends s_ to the filename.
+    Creates a filename by prepending s_ to the filename and appending r or c
+    if writing the rayleigh or compton sinogram, respectively.
 
     Arguments:
+    im - 2d float ndarray image
     p - phantom object
     algorithm - one of
         f - fluorescence
         r - rayleigh
         c - compton
-    anglelist - ordered list of floats; angles in degrees.
     el - string; name of current element, e.g. 'Fe'.
 
     """
-    assert algorithm in 'frc'
-
-    event_type = {'f': 'fluoro', 'r': 'rayleigh', 'c': 'compton'}[algorithm]
-    im = project_sinogram(event_type, p, anglelist, el, show_progress=False)
-
     # Get the filename that matches the glob pattern for this element
-    # and prepend s_f_, s_r_ or s_c_ to it
+    # and prepend s_ to it
     pattern = p.filename
     filenames = ['{base}-{el}{ext}'
                      .format(base='-'.join(f.split('-')[:-1]),
@@ -366,8 +362,7 @@ def project_and_write(p, algorithm, anglelist, el='matrix'):
     path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
 
     # Write sinogram (absorption map)
-    s_filename = os.path.join(path, 's_{base}'.format(
-        algorithm=algorithm, base=base))
+    s_filename = os.path.join(path, 's_{base}'.format(base=base))
     # append r or c to -matrix suffix so sinograms read in as unique images
     if '-matrix' in s_filename:
         s_filename = s_filename.replace('-matrix', '-matrix' + algorithm)
@@ -388,16 +383,19 @@ def project(p, algorithm, anglesfile):
     assert algorithm in 'frc'
 
     anglelist = np.loadtxt(anglesfile)
+    event_type = {'f': 'fluoro', 'r': 'rayleigh', 'c': 'compton'}[algorithm]
     if algorithm == 'f':
         # fluorescence sinogram
         for el in p.el_maps:
             if algorithm == 'f' and el == 'matrix':
                 continue
-            project_and_write(p, algorithm, anglelist, el)
+            im = project_sinogram(event_type, p, anglelist, el)
+            write_sinogram(im, p, algorithm, el)
     else:
         # algorithm is 'r' or 'c'
         # Rayleigh or Compton scattering sinogram of matrix
-        project_and_write(p, algorithm, anglelist)
+        im = project_sinogram(event_type, p, anglelist)
+        write_sinogram(im, p, algorithm)
 
 
 if __name__ == '__main__':
@@ -455,9 +453,9 @@ if __name__ == '__main__':
     plt.show()
     '''
 
-    p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
+    p = phantom.Phantom2d(filename='phantom1_100*.tiff', um_per_px=10.0,
+                          energy=15)
 
-    '''
     anglelist = np.loadtxt(anglesfile, dtype=int)
     el = 'Fe'
     sinogram = project_fluoro(p, el, anglelist, show_progress=True)
@@ -467,7 +465,7 @@ if __name__ == '__main__':
     plt.xlabel('rotation angle (deg)')
     plt.ylabel('x')
     plt.show()
-    '''
+
     print('fluoro')
     project(p, 'f', anglesfile)
     print('\nrayleigh')
