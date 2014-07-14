@@ -7,16 +7,17 @@
 
 """Phantom class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
-geometry and composition data, with class methods supplied to instanciate it.
+geometry and composition data, with class methods supplied to instantiate it.
 Alternatively, phantoms can be defined as a pair of files, one containing
 geometry data as a greyscale bitmap and the other containing the composition
 data structure defined in a yaml file.
 
 """
 
+from __future__ import print_function
 import os
 import numpy as np
-from skimage.io import imread
+from imageio import imread
 from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
@@ -204,14 +205,26 @@ class Phantom2d(object):
         """Read an image map (a greyscale png) whose pixel values
            correspond to keys in a lookup table of compounds.
 
-        Arguments:
-        filename - string or file handle filename
+        Parameters
+        ----------
+        filename : str or file handle
+            The filename to read.
 
-        Returns:
-        integer array
+        Returns
+        -------
+        int array
+
+        Raises
+        ------
+        IOError if there was a problem opening the file.
 
         """
-        im = imread(filename, as_grey=True)
+        try:
+            im = imread(filename)[:,:,0]
+        except IOError:
+            print('Could not open' + filename)
+            raise
+        # print(filename, im.max(), im.shape)
         self.rows, self.cols = im.shape
         self.um_per_px = 1.0
         return im
