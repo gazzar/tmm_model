@@ -12,10 +12,7 @@ import skimage.transform as st
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
-
-# append current directory to the path because we need to find tifffile.py
-import sys, os
-sys.path.insert(0, os.path.dirname(__file__))
+import tifffile
 
 
 def write_tiff32(filename, im):
@@ -29,7 +26,7 @@ def write_tiff32(filename, im):
         try:
             imsave(filename, im, plugin='freeimage')
         except (ValueError, RuntimeError):
-            imsave(filename, im, plugin='tifffile')
+            tifffile.imsave(filename, im, compress=1)
 
 
 def read_tiff32(filename):
@@ -51,7 +48,7 @@ def read_tiff32(filename):
         try:
             im = imread(filename, plugin='freeimage', as_grey=True)
         except (ValueError, RuntimeError):
-            im = imread(filename, plugin='tifffile', as_grey=True)
+            im = tifffile.imread(filename)
     im = im.astype(np.float32)
     return im
 
