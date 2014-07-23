@@ -7,7 +7,7 @@
 
 """Projection class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
-geometry and composition data, with class methods supplied to instanciate it.
+geometry and composition data, with class methods supplied to instantiate it.
 Alternatively, phantoms can be defined as a pair of files, one containing
 geometry data as a greyscale bitmap and the other containing the composition
 data structure defined in a yaml file.
@@ -15,20 +15,20 @@ data structure defined in a yaml file.
 """
 
 from __future__ import print_function
-import sys, os
+import sys
+import os
+import glob
+import fnmatch
+
 import numpy as np
 from numpy import exp, pi
 import scipy.constants as sc
 from scipy.special import expm1
-from skimage.transform import radon
-from helpers import (write_tiff32, zero_outside_circle, zero_outside_mask,
-                     rotate, imshow)
-from data_helpers import brain_attenuation
-import glob, fnmatch
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import xraylib as xrl
 
+from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
+from data_helpers import brain_attenuation
 from maia import Maia
 
 
@@ -111,7 +111,7 @@ def illumination_map(p, angle, I0=1.0):
         p.energy - incident beam energy (keV)
         p.um_per_px - length of one pixel of the map (um)
     angle - angle in degrees
-    I0 - incident intensity (default 1.0)
+    i0 - incident intensity (default 1.0)
 
     matrix_map (g/cm3)
     ma (cm2/g)
@@ -123,7 +123,7 @@ def illumination_map(p, angle, I0=1.0):
 
     im = rotate(matrix_map, -angle)
     ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
-    i_map[:, 0] = I0 * np.ones(i_map.shape[0])
+    i_map[:, 0] = i0 * np.ones(i_map.shape[0])
     for i in range(im.shape[1] - 1):
         i_map[:, i + 1] = i_map[:, i] * exp(-im[:, i] * ma_t)
     return i_map
@@ -163,7 +163,7 @@ def scattering_ma(event_type, p, row, col):
         # http://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/
         #        3D_Spherical.svg/200px-3D_Spherical.svg.png
         # i.e. spherical coordinates with polar angle theta, azimuthal angle phi
-        Z = compound[el].Z
+        z = compound[el].Z
 
         # Mass attenuation coefficients from cross-sections. See
         # http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
@@ -175,18 +175,18 @@ def scattering_ma(event_type, p, row, col):
             f = xrl.DCSP_Rayl
         else:
             f = xrl.DCSP_Compt
-        ma += (compound[el].fraction * omega * f(Z, p.energy, theta, phi))
+        ma += (compound[el].fraction * omega * f(z, p.energy, theta, phi))
     return ma
 
 
-def fluoro_ma(p, el_Z, row, col):
+def fluoro_ma(p, el_z, row, col):
     """Return the fluorescence mass attenuation coefficient (cm2/g)
     for the specified element and solid angle for the Maia detector
     element indexed by row, col. 
 
     Arguments:
     p - phantom instance (matrix plus elements)
-    el_Z - Z of element el
+    el_z - Z of element el
     row, col - maia detector element indices
 
     Returns:
@@ -202,7 +202,7 @@ def fluoro_ma(p, el_Z, row, col):
     # Units of the following expression:
     # solid angle * differential mass attenuation coefft
     # sterad/sterad * cm2/g
-    fluoro = omega / 4 / pi * xrl.CS_FluorLine_Kissel_Cascade(el_Z, line,
+    fluoro = omega / 4 / pi * xrl.CS_FluorLine_Kissel_Cascade(el_z, line,
                                                               p.energy)
     return fluoro
 
@@ -300,7 +300,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
             # Generate the initial fluorescence intensity
             # Start with the highest-energy edge or a mean factor accounting for
             # all edges first (move to other edges later?)
-            mac = fluoro_ma(p, el_Z, row, col)
+            mac = fluoro_ma(p, el_z, row, col)
 
             # Scale for propagation over one voxel
             # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
@@ -354,10 +354,9 @@ def write_sinogram(im, p, algorithm, el='matrix'):
     # Get the filename that matches the glob pattern for this element
     # and prepend s_ to it
     pattern = p.filename
-    filenames = ['{base}-{el}{ext}'
-                     .format(base='-'.join(f.split('-')[:-1]),
-                             el=el,
-                             ext=os.path.splitext(f)[1])
+    filenames = ['{base}-{el}{ext}'.format(base='-'.join(f.split('-')[:-1]),
+                                           el=el,
+                                           ext=os.path.splitext(f)[1])
                  for f in glob.glob(pattern)]
     path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
 
@@ -457,11 +456,14 @@ if __name__ == '__main__':
                           energy=15)
 
     anglelist = np.loadtxt(anglesfile, dtype=int)
-    el = 'Fe'
-    sinogram = project_fluoro(p, el, anglelist, show_progress=True)
+    el = 'Ar'
+    sinogram = project_sinogram('fluoro', p, anglelist, el, show_progress=True)
+    # sinogram = project_sinogram('rayleigh', p, anglelist, el,
+    #                             show_progress=True)
 
     np.save('sinoFe', np.rot90(sinogram))
-    imshow(np.rot90(sinogram), extent=[0,360,0,99], aspect=2, cmap='cubehelix')
+    imshow(np.rot90(sinogram), extent=[0, 360, 0, 99], aspect=2,
+           cmap='cubehelix')
     plt.xlabel('rotation angle (deg)')
     plt.ylabel('x')
     plt.show()
