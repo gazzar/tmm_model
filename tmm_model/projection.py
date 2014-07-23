@@ -93,13 +93,14 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
         if show_progress:
             sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
             sys.stdout.flush()
-        i_map = illumination_map(p, angle, I0=1.0)
+        i_map = illumination_map(p, angle, i0=1.0)
         e_map = emission_map(event_type, p, i_map, angle, el)
+        # sinogram[i] = e_map[10]
         sinogram[i] = e_map.sum(axis=0)
     return sinogram
 
 
-def illumination_map(p, angle, I0=1.0):
+def illumination_map(p, angle, i0=1.0):
     """Generates the image-sized map of intensity at each 2d pixel for a given
     angle accounting for absorption at the incident energy by the element,
     or compound in the case of the matrix.
