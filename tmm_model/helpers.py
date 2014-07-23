@@ -6,27 +6,27 @@
 
 """General helper functions"""
 
-import warnings
 from skimage.io import imsave, imread
 import skimage.transform as st
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
-import tifffile
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import tifffile
 
 
 def write_tiff32(filename, im):
     """Write a float32 tiff file.
 
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        # save a 32-bit tiff using either freeimage or tifffile
-        im = im.astype(np.float32)
-        try:
-            imsave(filename, im, plugin='freeimage')
-        except (ValueError, RuntimeError):
-            tifffile.imsave(filename, im, compress=1)
+    # save a 32-bit tiff using either freeimage or tifffile
+    im = im.astype(np.float32)
+    try:
+        imsave(filename, im, plugin='freeimage')
+    except (ValueError, RuntimeError):
+        tifffile.imsave(filename, im, compress=1)
 
 
 def read_tiff32(filename):
@@ -42,13 +42,11 @@ def read_tiff32(filename):
     float32 image ndarray
 
     """
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        # load a 32-bit tiff using either freeimage or tifffile
-        try:
-            im = imread(filename, plugin='freeimage', as_grey=True)
-        except (ValueError, RuntimeError):
-            im = tifffile.imread(filename)
+    # load a 32-bit tiff using either freeimage or tifffile
+    try:
+        im = imread(filename, plugin='freeimage', as_grey=True)
+    except (ValueError, RuntimeError):
+        im = tifffile.imread(filename)
     im = im.astype(np.float32)
     return im
 
