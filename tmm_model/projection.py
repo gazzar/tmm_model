@@ -162,7 +162,7 @@ def scattering_ma(event_type, p, row, col):
         # Assuming propagation along z, coordinate system used by the DCSP_Rayl
         # and DCSP_Compt methods is shown here:
         # http://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/
-        #        3D_Spherical.svg/200px-3D_Spherical.svg.png
+        # 3D_Spherical.svg/200px-3D_Spherical.svg.png
         # i.e. spherical coordinates with polar angle theta, azimuthal angle phi
         z = compound[el].Z
 
@@ -225,7 +225,7 @@ def compton_scattered_energy(energy_in, row, col):
     theta = pi / 2 + np.arctan(maia_d.d_mm / np.hypot(x, y))
 
     # energy_out = 1.0 / (1.0/energy_in +
-    #                     (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
+    # (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
     return xrl.ComptonEnergy(energy_in, theta)
 
 
@@ -262,11 +262,12 @@ def emission_map(event_type, p, i_map, angle, el=None):
         edge_map_r = rotate(edge_map, -angle)
         del edge_map
 
-        # Get Z for the fluorescing element and check that its K_alpha is below
-        # the incident energy.
-        el_Z = xrl.SymbolToAtomicNumber(el)
+        # Do this here because we're outside the detector channel loop.
+        # Get Z for the fluorescing element and check that its K_alpha is
+        # below the incident energy.
+        el_z = xrl.SymbolToAtomicNumber(el)
         line = xrl.KA_LINE
-        k_alpha_energy = xrl.LineEnergy(el_Z, line)
+        k_alpha_energy = xrl.LineEnergy(el_z, line)
         assert k_alpha_energy < p.energy
 
     # 2d accumulator for results
@@ -305,7 +306,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
 
             # Scale for propagation over one voxel
             # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
-            #     (cm3/g) =   (cm2/g) * cm
+            # (cm3/g) =   (cm2/g) * cm
             mac_t = mac * p.um_per_px / UM_PER_CM
             # Generate outgoing radiation.
             imap_rm *= -expm1(-edge_map_rm * mac_t)
@@ -460,7 +461,7 @@ if __name__ == '__main__':
     el = 'Ar'
     sinogram = project_sinogram('fluoro', p, anglelist, el, show_progress=True)
     # sinogram = project_sinogram('rayleigh', p, anglelist, el,
-    #                             show_progress=True)
+    # show_progress=True)
 
     np.save('sinoFe', np.rot90(sinogram))
     imshow(np.rot90(sinogram), extent=[0, 360, 0, 99], aspect=2,
