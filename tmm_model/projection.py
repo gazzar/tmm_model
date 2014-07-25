@@ -70,20 +70,30 @@ def project_with_absorption(p, matrix_map, anglelist):
 def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
     """Generates the sinogram of the requested element accounting for
     absorption by the matrix defined by the matrix_map, and the geometry.
+    Physical units used:
+        matrix_map (g/cm^3)
+        ma (cm^2/g)
+        px_side (um)
 
-    Arguments:
-    event_type - string, one of ['rayleigh', 'compton', 'fluoro']
-    p - phantom object,
+    Parameters
+    ----------
+    event_type : string
+        One of ['rayleigh', 'compton', 'fluoro'].
+    p : Phantom2d object
         p.energy - incident beam photon energy (keV).
         p.um_per_px - length of one pixel of the map (um).
-    anglelist - ordered list of angles in degrees.
-    el - string with name of element (e.g. 'Fe') when projecting an element's
+    anglelist : list of float
+        Ordered list of sinogram projection angles in degrees.
+    el : string, optional
+        Name of element (e.g. 'Fe') used if projecting that element's
         fluorescence.
-    show_progress - boolean flag. Display progress via iff True.
+    show_progress : bool
+        Display progress as an updating percentage iff True.
 
-    matrix_map (g/cm^3)
-    ma (cm^2/g)
-    px_side (um)
+    Returns
+    -------
+    array of float
+        Sinogram of requested scattering or fluorescence.
 
     """
     assert event_type in ['rayleigh', 'compton', 'fluoro']
@@ -95,7 +105,6 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
             sys.stdout.flush()
         i_map = illumination_map(p, angle, i0=1.0)
         e_map = emission_map(event_type, p, i_map, angle, el)
-        # sinogram[i] = e_map[10]
         sinogram[i] = e_map.sum(axis=0)
     return sinogram
 
@@ -211,12 +220,17 @@ def compton_scattered_energy(energy_in, row, col):
     """Energy of the Compton photons scattered into the direction of the Maia
     detector element.
 
-    Arguments:
-    energy_in - incident beam photon energy (keV)
-    row, col - maia detector element indices
+    Parameters
+    ----------
+    energy_in : float
+        Incident beam photon energy (keV).
+    row, col: int
+        Maia detector element indices.
 
-    Returns:
-    Energy of scattered photons (keV)
+    Returns
+    -------
+    float
+        Energy of scattered photons (keV)
 
     """
     # Get polar scattering angle (theta) to detector element
@@ -230,17 +244,27 @@ def compton_scattered_energy(energy_in, row, col):
 
 def emission_map(event_type, p, i_map, angle, el=None):
     """Compute the maia-detector-shaped map of Rayleigh, Compton or K-edge
-    fluorescence from the element map for a uniform incident intensity I0
+    fluorescence from the element map for a uniform incident intensity I0.
 
-    Arguments:
-    event_type - string; one of ['rayleigh', 'compton', 'fluoro']
-    p - phantom instance (matrix plus elements).
-    i_map - 2d array of floats; map of incident intensity.
-    angle - float; stage rotation angle (degrees).
-    el - string; element to consider, e.g. 'Fe'.
+    Arguments
+    ---------
+    event_type : string
+        One of ['rayleigh', 'compton', 'fluoro'].
+    p : Phantom2d object
+        p.energy - incident beam photon energy (keV).
+        p.um_per_px - length of one pixel of the map (um).
+    i_map : 2d ndarray of float
+        Map of incident intensity.
+    angle : float
+        Stage rotation angle (degrees).
+    el : string, optional
+        Name of element (e.g. 'Fe') used if projecting that element's
+        fluorescence.
 
-    Returns:
-    The accumulated flux in Maia detector row 7 for the requested edge
+    Returns
+    -------
+    1d ndarray of float
+        The accumulated flux in Maia detector row 7 for the requested edge
 
     """
     assert event_type in ['rayleigh', 'compton', 'fluoro']
@@ -275,6 +299,11 @@ def emission_map(event_type, p, i_map, angle, el=None):
     # Iterate over maia detector elements in theta, i.e. maia columns
     # This should be parallelizable
     row = 7
+    # Get multiplication factor for additional distance that an outgoing photon
+    # must travel as it passes out-of-plane to the detector.
+    delta_theta_yx_radian = maia_d.yx_angles_radian(row, col=0)
+    delta_theta_y_radian = delta_theta_yx_radian[0]
+    y_distance_factor = 1.0 / np.cos(delta_theta_y_radian)
     for col in range(maia_d.cols):
         # Get angle to rotate maps so that propagation toward detector plane
         # corresponds with direction to maia detector element
@@ -306,14 +335,14 @@ def emission_map(event_type, p, i_map, angle, el=None):
             # Scale for propagation over one voxel
             # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
             # (cm3/g) =   (cm2/g) * cm
-            mac_t = mac * p.um_per_px / UM_PER_CM
+            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the fluorescence intensity map.
             imap_rm *= -expm1(-edge_map_rm * mac_t)
             del edge_map_rm
         else:
             mac = scattering_ma(event_type, p, row, col)
-            mac_t = mac * p.um_per_px / UM_PER_CM
+            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the scattering radiation intensity map.
             imap_rm *= -expm1(-matrix_map_rm * mac_t)
@@ -326,7 +355,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
             'compton': compton_scattered_energy(p.energy, row, col),
             'fluoro': k_alpha_energy,
         }[event_type]
-        mac_t = brain.ma(energy) * p.um_per_px / UM_PER_CM
+        mac_t = brain.ma(energy) * p.um_per_px / UM_PER_CM * y_distance_factor
 
         # Propagate all intensity to the detector, accumulating (+) and
         # absorbing [exp(-mu/rho rho t)] as we go.
