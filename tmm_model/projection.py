@@ -124,9 +124,8 @@ def illumination_map(p, angle, i0=1.0):
 
     im = rotate(matrix_map, -angle)
     ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
-    i_map[:, 0] = i0 * np.ones(i_map.shape[0])
-    for i in range(im.shape[1] - 1):
-        i_map[:, i + 1] = i_map[:, i] * exp(-im[:, i] * ma_t)
+    cmam = np.cumsum(im, axis=1) * ma_t
+    i_map = i0 * exp(-cmam)
     return i_map
 
 
@@ -309,12 +308,14 @@ def emission_map(event_type, p, i_map, angle, el=None):
             # (cm3/g) =   (cm2/g) * cm
             mac_t = mac * p.um_per_px / UM_PER_CM
             # Generate outgoing radiation.
+            # This is the fluorescence intensity map.
             imap_rm *= -expm1(-edge_map_rm * mac_t)
             del edge_map_rm
         else:
             mac = scattering_ma(event_type, p, row, col)
             mac_t = mac * p.um_per_px / UM_PER_CM
             # Generate outgoing radiation.
+            # This is the scattering radiation intensity map.
             imap_rm *= -expm1(-matrix_map_rm * mac_t)
 
         # Now we've "evented," we use the mass attenuation coefficients of the
@@ -329,11 +330,11 @@ def emission_map(event_type, p, i_map, angle, el=None):
 
         # Propagate all intensity to the detector, accumulating (+) and
         # absorbing [exp(-mu/rho rho t)] as we go.
-        for i in range(imap_rm.shape[0] - 1):
-            imap_rm[i + 1] += imap_rm[i] * exp(-matrix_map_rm[i] * mac_t)
+        cmam_matrix = np.cumsum(matrix_map_rm, axis=0) * mac_t
+        i_out = (imap_rm * exp(-cmam_matrix)).sum(axis=0)
 
         # Store the result for this detector element.
-        accumulator[col] = imap_rm[-1]
+        accumulator[col] = i_out
 
     return accumulator
 
