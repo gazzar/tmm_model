@@ -23,8 +23,8 @@ class Maia(object):
     """
     def __init__(self, d_mm=10.0):
         # Read Chris Ryan's detector data
-        self.maia_data = pd.read_csv(MAIA_DATA, skipinitialspace=True,
-                                      header=12)
+        self.maia_data = pd.read_csv(MAIA_DATA, index_col='Data',
+                                     skipinitialspace=True, header=12)
         self.d_mm = d_mm
         self.rows = 20
         self.cols = 20
