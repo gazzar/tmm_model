@@ -119,19 +119,19 @@ class Maia(object):
         return map2d
 
 
-    def element(self, row, col):
+    def channel(self, row, col):
         """Return Dataframe for detector element at row, col index
 
         """
         return self.maia_data[(self.maia_data['Row']==row) &
-                             (self.maia_data['Column']==col)]
+                              (self.maia_data['Column']==col)]
 
 
     def area(self, row, col):
         """Return area of maia element row, col
 
         """
-        el = self.element(row, col)
+        el = self.channel(row, col)
         return el.iloc[0].area_mm2
 
 
@@ -139,7 +139,7 @@ class Maia(object):
         """Return (Y, X) centre coords (mm) of maia element row, col
 
         """
-        el = self.element(row, col)
+        el = self.channel(row, col)
         y, x = el.iloc[0][['Y', 'X']]
         return y, x
 
@@ -149,7 +149,7 @@ class Maia(object):
         row, col
 
         """
-        el = self.element(row, col)
+        el = self.channel(row, col)
         yr, xr = el.iloc[0][['angle_Y_rad', 'angle_X_rad']]
         return yr, xr
 
@@ -158,7 +158,7 @@ class Maia(object):
         """Return solid angle of maia element row, col
 
         """
-        el = self.element(row, col)
+        el = self.channel(row, col)
         '''
         a_mm, b_mm, y, x = el.iloc[0][['width', 'height', 'Y', 'X']]
         A_mm = abs(x) - a_mm/2
@@ -176,6 +176,67 @@ class Maia(object):
         """
         plt.imshow(a, interpolation='nearest', origin='lower', cmap=cmap)
         plt.colorbar()
+
+
+    def channel_selection(self, quadrant=None, row=None, col=None):
+        """A generator for the Maia channel IDs (which are also the
+        Pandas dataframe IDs) of all Maia channels in the specified
+        group, where the group is either a quadrant, row or column. Currently
+        this generator just allows one of the arguments to be specified.
+
+        Parameters
+        ----------
+        quadrant : int, default None
+            one of [0, 1, 2, 3].
+        row : int, default None
+            The Maia channel row; one of 0-19.
+        col : int, default None
+            The Maia channel column; one of 0-19.
+
+        Yields
+        ------
+        All channel IDs in the group.
+
+        """
+        # Verify that exactly one of the arguments is specified.
+        not_none_count = (0 if quadrant is None else 1) + \
+                         (0 if row is None else 1) + \
+                         (0 if col is None else 1)
+        assert not_none_count == 1
+
+        if quadrant is not None:
+            q = self.maia_data.Quadrant
+            for channel in q[q==quadrant].index.values:
+                yield channel
+
+        if row is not None:
+            r = self.maia_data.Row
+            for channel in r[r==row].index.values:
+                yield channel
+
+        if col is not None:
+            c = self.maia_data.Column
+            for channel in c[c==col].index.values:
+                yield channel
+
+
+    def maia_data_column_from_id(self, channel_id, column_name):
+        """Return the entry from the specified channel id and column in the
+        maia_data Pandas dataframe.
+
+        Parameters
+        ----------
+        channel_id : int
+            Pandas Dataframe index corresponding to the Maia "Data" value.
+        column_name : str
+            csv column name string, e.g. "Quadrant".
+
+        Returns
+        -------
+        Requested value (float).
+
+        """
+        return self.maia_data.loc[channel_id][column_name]
 
 
 if __name__ == '__main__':
