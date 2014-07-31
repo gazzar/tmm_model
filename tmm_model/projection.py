@@ -24,7 +24,6 @@ import numpy as np
 from numpy import exp, pi
 import scipy.constants as sc
 from scipy.special import expm1
-import matplotlib.pyplot as plt
 import xraylib as xrl
 
 from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
@@ -137,9 +136,10 @@ def illumination_map(p, angle, i0=1.0):
 
 
 def scattering_ma(event_type, p, row, col):
-    """Return the Rayleigh or Compton mass attenuation coefficients (cm2/g)
-    for icru44 brain tissue with density described by the 'matrix' map of
-    phantom p into the Maia detector element indexed by row, col.
+    """Return the Rayleigh or Compton differential mass attenuation coefficients
+    (cm2/g/sr) for icru44 brain tissue with density described by the 'matrix'
+    map of phantom p into the Maia detector element indexed by row, col. This
+    needs to be multiplied later by the Maia-channel-dependent solid angle.
 
     Arguments:
     event_type - string, one of ['rayleigh', 'compton']
@@ -147,12 +147,10 @@ def scattering_ma(event_type, p, row, col):
     row, col - maia detector element indices
 
     Returns:
-    The (rayleigh, compton) mass attenuation coefficient
+    The (rayleigh, compton) differential mass attenuation coefficient
 
     """
     assert event_type in ['rayleigh', 'compton']
-
-    omega = maia_d.solid_angle(row, col)
 
     # Get spherical angles (polar theta & azimuthal phi) to detector element
     y, x = maia_d.yx(row, col)
@@ -175,41 +173,42 @@ def scattering_ma(event_type, p, row, col):
         # Mass attenuation coefficients from cross-sections. See
         # http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
         # Units of the following expression:
-        # elemental fraction by weight * solid angle *
-        #                                   differential mass attenuation coefft
-        # unitless * sterad * cm2/g/sterad
+        # elemental fraction by weight * differential mass attenuation coefft
+        # unitless * cm2/g/sr
         if event_type == 'rayleigh':
             f = xrl.DCSP_Rayl
         else:
             f = xrl.DCSP_Compt
-        ma += (compound[el].fraction * omega * f(z, p.energy, theta, phi))
+        ma += compound[el].fraction * f(z, p.energy, theta, phi)
     return ma
 
 
-def fluoro_ma(p, el_z, row, col):
-    """Return the fluorescence mass attenuation coefficient (cm2/g)
-    for the specified element and solid angle for the Maia detector
-    element indexed by row, col. 
+def fluoro_ma(p, el_z):
+    """Return the fluorescence differential mass attenuation coefficient
+    (cm2/g/sr) for the specified element. This needs to be multiplied later by
+    the Maia-channel-dependent solid angle.
 
-    Arguments:
-    p - phantom instance (matrix plus elements)
-    el_z - Z of element el
-    row, col - maia detector element indices
+    Parameters
+    ----------
+    p : Phantom2d instance
+        matrix plus elements.
+    el_z : int
+        Z of element el.
 
-    Returns:
-    fluorescence mass attenuation coefficient (cm2/g)
+    Returns
+    -------
+    float
+        Differential fluorescence mass attenuation coefficient (cm2/g/sr).
 
     """
-    omega = maia_d.solid_angle(row, col)
-
     line = xrl.KA_LINE
 
     # CS_FluorLine_Kissel_Cascade is the XRF cross section Q_{i,YX} in Eq. (12)
     # of Schoonjans et al.
     # Units of the following expression:
-    # solid angle * differential mass attenuation coefft
-    # sterad/sterad * cm2/g
-    fluoro = omega / 4 / pi * xrl.CS_FluorLine_Kissel_Cascade(el_z, line,
+    # differential mass attenuation coefft
+    # 1.0/sr * cm2/g
+    fluoro = 1.0 / 4 / pi * xrl.CS_FluorLine_Kissel_Cascade(el_z, line,
                                                               p.energy)
     return fluoro
 
@@ -267,12 +266,9 @@ def emission_map(event_type, p, i_map, angle, el=None):
     """
     assert event_type in ['rayleigh', 'compton', 'fluoro']
 
-    # imap contains the values of incident attenuated flux $F_\gamma$
-    imap_r = rotate(i_map, -angle)
-
-    # Get matrix map and the map for the requested element and rotate them to
-    # the same angle as the intensity map:
-    # These both need to be in registration
+    # Get matrix map and, for fluorescence, the map for the requested element,
+    # and rotate them to the same angle as the intensity map since these all
+    # need to be in registration.
     matrix_map = zero_outside_circle(p.el_maps['matrix'])
     matrix_map_r = rotate(matrix_map, -angle)
     del matrix_map
@@ -292,7 +288,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
         assert k_alpha_energy < p.energy
 
     # 2d accumulator for results
-    accumulator = np.empty((maia_d.shape[1], imap_r.shape[0]))
+    accumulator = np.empty((maia_d.shape[1], i_map.shape[0]))
 
     # Iterate over maia detector elements in theta, i.e. maia columns
     # This should be parallelizable
@@ -303,7 +299,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
     delta_theta_y_radian = delta_theta_yx_radian[0]
     y_distance_factor = 1.0 / np.cos(delta_theta_y_radian)
 
-    for channel_id in maia_d.channel_selection(row=7):
+    for channel_id in maia_d.channel_selection(row=row):
         col = maia_d.maia_data_column_from_id(channel_id, 'Column')
         # Get angle to rotate maps so that propagation toward detector plane
         # corresponds with direction to maia detector element
@@ -313,13 +309,16 @@ def emission_map(event_type, p, i_map, angle, el=None):
         # For every maia detector element, get the solid angle (parallelize?)
         # Orient the maps toward the maia element
         # TODO: check sign of delta: +ve or -ve?
-        imap_rm = rotate(imap_r, -delta_theta_x)
+        imap_rm = rotate(i_map, -delta_theta_x)
         matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
 
         # Rotate the geometry so that the detector is on the bottom, so we can
         # integrate by stepping through the row indices.
         imap_rm = np.rot90(imap_rm)
         matrix_map_rm = np.rot90(matrix_map_rm)
+
+        # Solid angle of Maia channel
+        omega = maia_d.solid_angle(row, col)
 
         # mass attenuation coefft. (cm2/g)
         if event_type == 'fluoro':
@@ -330,19 +329,19 @@ def emission_map(event_type, p, i_map, angle, el=None):
             # Generate the initial fluorescence intensity
             # Start with the highest-energy edge or a mean factor accounting for
             # all edges first (move to other edges later?)
-            mac = fluoro_ma(p, el_z, row, col)
+            mac = fluoro_ma(p, el_z)
 
             # Scale for propagation over one voxel
             # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
-            # (cm3/g) =   (cm2/g) * cm
-            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
+            # (cm3/g) =   (cm2/g/sr) * sr * cm
+            mac_t = mac * omega * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the fluorescence intensity map.
             imap_rm *= -expm1(-edge_map_rm * mac_t)
             del edge_map_rm
         else:
             mac = scattering_ma(event_type, p, row, col)
-            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
+            mac_t = mac * omega * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the scattering radiation intensity map.
             imap_rm *= -expm1(-matrix_map_rm * mac_t)
@@ -430,6 +429,7 @@ def project(p, algorithm, anglesfile):
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     import phantom
 
     BASE = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model'
@@ -490,10 +490,9 @@ if __name__ == '__main__':
     anglelist = np.loadtxt(anglesfile, dtype=int)
     el = 'Ar'
     sinogram = project_sinogram('fluoro', p, anglelist, el, show_progress=True)
-    # sinogram = project_sinogram('rayleigh', p, anglelist, el,
-    # show_progress=True)
+    # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
 
-    np.save('sinoFe', np.rot90(sinogram))
+    # np.save('sino'+el, np.rot90(sinogram))
     imshow(np.rot90(sinogram), extent=[0, 360, 0, 99], aspect=2,
            cmap='cubehelix')
     plt.xlabel('rotation angle (deg)')
