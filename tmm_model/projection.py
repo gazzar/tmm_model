@@ -129,8 +129,6 @@ def illumination_map(p, angle, i0=1.0):
 
     """
     matrix_map = zero_outside_circle(p.el_maps['matrix'])
-    i_map = np.empty_like(matrix_map)
-
     im = rotate(matrix_map, -angle)
     ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
     cmam = np.cumsum(im, axis=1) * ma_t
@@ -304,7 +302,9 @@ def emission_map(event_type, p, i_map, angle, el=None):
     delta_theta_yx_radian = maia_d.yx_angles_radian(row, col=0)
     delta_theta_y_radian = delta_theta_yx_radian[0]
     y_distance_factor = 1.0 / np.cos(delta_theta_y_radian)
-    for col in range(maia_d.cols):
+
+    for channel_id in maia_d.channel_selection(row=7):
+        col = maia_d.maia_data_column_from_id(channel_id, 'Column')
         # Get angle to rotate maps so that propagation toward detector plane
         # corresponds with direction to maia detector element
         delta_theta_yx_radian = maia_d.yx_angles_radian(row, col)
