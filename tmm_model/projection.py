@@ -333,18 +333,18 @@ def emission_map(event_type, p, i_map, angle, el=None):
 
             # Scale for propagation over one voxel
             # *_mac_t = *_mac * p.um_per_px/UM_PER_CM
-            # (cm3/g) =   (cm2/g/sr) * sr * cm
-            mac_t = mac * omega * p.um_per_px / UM_PER_CM * y_distance_factor
+            # (cm3/g/sr) =   (cm2/g/sr) * cm
+            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the fluorescence intensity map.
-            imap_rm *= -expm1(-edge_map_rm * mac_t)
+            imap_rm *= -expm1(-edge_map_rm * omega * mac_t)
             del edge_map_rm
         else:
             mac = scattering_ma(event_type, p, row, col)
-            mac_t = mac * omega * p.um_per_px / UM_PER_CM * y_distance_factor
+            mac_t = mac * p.um_per_px / UM_PER_CM * y_distance_factor
             # Generate outgoing radiation.
             # This is the scattering radiation intensity map.
-            imap_rm *= -expm1(-matrix_map_rm * mac_t)
+            imap_rm *= -expm1(-matrix_map_rm * omega * mac_t)
 
         # Now we've "evented," we use the mass attenuation coefficients of the
         # matrix for propagation with absorption out to the detector, but this
@@ -359,7 +359,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
         # Propagate all intensity to the detector, accumulating (+) and
         # absorbing [exp(-mu/rho rho t)] as we go.
         cmam_matrix = np.cumsum(matrix_map_rm, axis=0) * mac_t
-        i_out = (imap_rm * exp(-cmam_matrix)).sum(axis=0)
+        i_out = (imap_rm * exp(-cmam_matrix * omega)).sum(axis=0)
 
         # Store the result for this detector element.
         accumulator[col] = i_out
