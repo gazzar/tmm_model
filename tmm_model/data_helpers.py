@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy import interpolate
+import xraylib as xrl
 from collections import namedtuple
 import os
 
@@ -14,91 +15,92 @@ if __name__ == "__main__" and __package__ is None:
     __package__ = "tmm_model"
 '''
 
-BRAIN_DATA = os.path.join(os.path.dirname(__file__), 'data',
-                          'ICRU_44_brain_grey_white_matter.txt')
+'''
+Note: Density of wet brain matter (C_1.4 H_1 O_7.1 N_0.2) is 1.04 g/cm^3
 
-class brain_attenuation(object):
+The ICRU-44 brain tissue model is based on the following elemental mix
+http://physics.nist.gov/PhysRefData/XrayMassCoef/tab2.html
+<Z/A>       I (eV)   Density (g/cm3)    Composition (Z: fraction by weight)
+0.55239     73.9     1.040E+00          H  1: 0.107000
+                                        C  6: 0.145000
+                                        N  7: 0.022000
+                                        O  8: 0.712000
+                                        Na 11: 0.002000
+                                        P  15: 0.004000
+                                        S  16: 0.002000
+                                        Cl 17: 0.003000
+                                        K  19: 0.003000
+'''
+
+Element = namedtuple('Element', 'atomic_number Z fraction')
+
+# class Compound(object):
+#     """
+#     A compound containing one or more elements.
+#
+#     """
+#     def __init__(self, density):
+#         self.density = density
+#         self.elements
+
+cp_brain_icru44_density = 1.04  # g/cm3
+cp_brain_icru44 = [
+    Element('H', 1 , 0.107000),
+    Element('C' ,6 , 0.145000),
+    Element('N' ,7 , 0.022000),
+    Element('O' ,8 , 0.712000),
+    Element('Na',11, 0.002000),
+    Element('P' ,15, 0.004000),
+    Element('S' ,16, 0.002000),
+    Element('Cl',17, 0.003000),
+    Element('K' ,19, 0.003000),
+    ]
+
+
+def reweight_compound(compound, weight):
+    """
+    Takes a compound (list of Elements) and returns a matching list, with the
+    fractions multiplied by the weight.
+
+    Parameters
+    ----------
+    compound : list of Element namedtuples
+    weight : float
+        The weight factor (between 0 and 1) used to weight the entire compound
+
+    Returns
+    -------
+    list of Element namedtuples
+
+    """
+    assert 0.0 <= weight <= 1.0
+    return [el._replace(fraction=el.fraction * weight) for el in compound]
+
+
+class brain_properties(object):
     """A class wrapping the NIST ICRU_44 data for brain tissue
     Example:
     b = brain_data()
     b.ma(13)
 
-    Note: Density of wet brain matter (C_1.4 H_1 O_7.1 N_0.2) is 1.04 g/cm^3
-
-    The ICRU-44 brain tissue model is based on the following elemental mix
-    http://physics.nist.gov/PhysRefData/XrayMassCoef/tab2.html
-    <Z/A>       I (eV)   Density (g/cm3)    Composition (Z: fraction by weight)
-    0.55239     73.9     1.040E+00          H  1: 0.107000
-                                            C  6: 0.145000
-                                            N  7: 0.022000
-                                            O  8: 0.712000
-                                            Na 11: 0.002000
-                                            P  15: 0.004000
-                                            S  16: 0.002000
-                                            Cl 17: 0.003000
-                                            K  19: 0.003000
-
     """
-    Element = namedtuple('Element', 'Z fraction')
-    brain_icru44_composition = {
-        'H' : Element(Z=1 , fraction=0.107000),
-        'C' : Element(Z=6 , fraction=0.145000),
-        'N' : Element(Z=7 , fraction=0.022000),
-        'O' : Element(Z=8 , fraction=0.712000),
-        'Na': Element(Z=11, fraction=0.002000),
-        'P' : Element(Z=15, fraction=0.004000),
-        'S' : Element(Z=16, fraction=0.002000),
-        'Cl': Element(Z=17, fraction=0.003000),
-        'K' : Element(Z=19, fraction=0.003000),
-        }
-
     def __init__(self):
-        self.brain_table = brain_table = pd.read_fwf(BRAIN_DATA)
-#        self.brain_table.mu_cm2_g[2] = 3.7e3
-        # Identify the discontinuities in the lookup table data that
-        # correspond to K edges.
-        cuts = brain_table.edges.notnull().nonzero()[0]
-        self.cuts = np.hstack(([0], cuts.flat, len(brain_table.edges)-1))
-        # A list of index 2-tuples defining piecewise-continuous intervals
-        self.intervals = [tuple(i) for i in np.hstack(
-                                            ([0], np.dstack((cuts,cuts)).flat,
-                                             len(brain_table.edges)-1)
-                                            ).reshape(-1,2)]
-        # Do piecewise Hermite Polynomial interpolation on each interval.
-        # Do this in log-log coordinates. 
-        self.funcs = [interpolate.PchipInterpolator(
-                          np.log(brain_table.Energy_MeV.values[low:high]),
-                          np.log(brain_table.mu_cm2_g.values[low:high]))
-                      for low, high in self.intervals]
-        self.energy_min = self.brain_table.Energy_MeV.values.min()
-        self.energy_max = self.brain_table.Energy_MeV.values.max()
+        self.cp_brain_icru44_density = cp_brain_icru44_density
 
     def ma(self, energy):
-        """Return mu/rho (in cm^2/g)
-        See http://stackoverflow.com/questions/20941973/python-pandas-interpolate-with-new-x-axis
+        return sum([el.fraction * xrl.CS_Total(el.Z, energy) for el in
+                    cp_brain_icru44])
 
-        Arguments:
-        energy - energy (keV)
-        
-        Returns:
-        mu/rho (in cm^2/g)
+    @property
+    def density(self):
+        return self.cp_brain_icru44_density
 
-        """
-        energy_MeV = energy/1000.0
-        # Don't extrapolate
-        assert(self.energy_min <= energy_MeV <= self.energy_max)
-
-        # ix is the index of the data entry immediately above energy_MeV
-        # ix2 is the index of the piecewise-continuous interval. This is the
-        # index of the correct interpolating function.
-        ix = (energy_MeV < self.brain_table.Energy_MeV).argmax()
-        ix2 = (ix < self.cuts).argmax() - 1
-
-        return np.exp(self.funcs[ix2](np.log(energy_MeV)))
+    def get_weighted_brain_compound(self, weight):
+        return reweight_compound(cp_brain_icru44, weight)
 
 
 if __name__ == "__main__":
-    b = brain_attenuation()
+    b = brain_properties()
     print b.ma(1)
     print b.ma(1.01)
     print b.ma(1.07)
@@ -120,10 +122,14 @@ if __name__ == "__main__":
 
     # print b.brain_table.mu_cm2_g.values
 
-    import matplotlib.pyplot as plt
-#     xs = b.brain_table.Energy_MeV.values
-    xs = np.logspace(-3, np.log10(b.brain_table.Energy_MeV.values[-1]-1), 10000)
-    ys = np.array([b.ma(x*1000) for x in xs])
+#     import matplotlib.pyplot as plt
+# #     xs = b.brain_table.Energy_MeV.values
+#     xs = np.logspace(-3, np.log10(b.brain_table.Energy_MeV.values[-1]-1), 10000)
+#     ys = np.array([b.ma(x*1000) for x in xs])
+#
+#     plt.loglog(xs, ys, '.-')
+#     plt.show()
 
-    plt.loglog(xs, ys, '.-')
-    plt.show()
+    print b.cp_brain_icru44_density
+    print b.get_weighted_brain_compound(1)
+    print b.get_weighted_brain_compound(0.5)

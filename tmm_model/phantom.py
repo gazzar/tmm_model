@@ -289,7 +289,9 @@ class Phantom2d(object):
 
         # generate a map for each element
         maps = {}
-        for el in elements:
+        # for el in elements:
+        non_matrix_elements = elements.difference(self.matrix_elements.split())
+        for el in non_matrix_elements:
             maps[el] = np.zeros(self.phantom_array.shape, dtype=np.float32)
 
         if self.matrix_elements:
@@ -298,6 +300,10 @@ class Phantom2d(object):
 
         for compound in self.compounds:
             density, weights = self.compounds[compound]
+            # Normalize weights so that they sum to 1
+            sum_of_weights = sum(weights.values())
+            weights = {k:v/sum_of_weights for k,v in weights.iteritems()}
+            # Distribute elements to the individual maps or the matrix
             for el in weights:
                 if el in self.matrix_elements.split():
                     # add to the matrix map
@@ -305,16 +311,12 @@ class Phantom2d(object):
                 else:
                     # add to the individual element map
                     m = maps[el]
-                m[self.phantom_array==compound] = density * weights[el]
+                compound_mask = (self.phantom_array & compound).astype(bool)
+                m[compound_mask] = density * weights[el]
 
         # Write tiffs
-        # First replace all matrix elements with a single entry
-        if self.matrix_elements:
-            elements -= set(self.matrix_elements.split())
-            elements.add('matrix')
-        for el in elements:
-            outfile = os.path.join(dirname,
-                                   '{}-{}.tiff'.format(filename, el))
+        for el in maps:
+            outfile = os.path.join(dirname, '{}-{}.tiff'.format(filename, el))
             write_tiff32(outfile, maps[el])
 
 
@@ -362,7 +364,9 @@ class Phantom2d(object):
 
 
 if __name__ == '__main__':
-    GOLOSIO_MAP = os.path.join('data', 'golosio_100.png')
+    # MAP = os.path.join('data', 'golosio_100.png')
 #     GOLOSIO_MAP = os.path.join('data', 'golosio_100*.tiff')
-    p = Phantom2d(filename=GOLOSIO_MAP)
+    MAP = r'R:\Science\XFM\GaryRuben\projects\TMM\work\data' \
+                  r'\phantom1_100.png'
+    p = Phantom2d(filename=MAP, matrix_elements='H C N O Na P S Cl K')
     p.split_map('data')

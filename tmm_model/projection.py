@@ -27,7 +27,7 @@ from scipy.special import expm1
 import xraylib as xrl
 
 from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
-from data_helpers import brain_attenuation
+from data_helpers import brain_properties, reweight_compound
 from maia import Maia
 
 
@@ -36,7 +36,7 @@ J_PER_KEV = 1e3 * sc.eV
 deg_to_rad = lambda x: x / 180 * pi
 rad_to_deg = lambda x: x * 180 / pi
 
-brain = brain_attenuation()  # attenuation data object singleton
+brain = brain_properties()  # brain data object instance
 maia_d = Maia()  # Maia detector object singleton
 
 
@@ -77,7 +77,7 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
     Parameters
     ----------
     event_type : string
-        One of ['rayleigh', 'compton', 'fluoro'].
+        One of ['absorption', 'rayleigh', 'compton', 'fluoro'].
     p : Phantom2d object
         p.energy - incident beam photon energy (keV).
         p.um_per_px - length of one pixel of the map (um).
@@ -95,7 +95,7 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
         Sinogram of requested scattering or fluorescence.
 
     """
-    assert event_type in ['rayleigh', 'compton', 'fluoro']
+    assert event_type in ['absorption', 'rayleigh', 'compton', 'fluoro']
 
     sinogram = np.empty((len(anglelist), p.cols))
     for i, angle in enumerate(anglelist):
@@ -108,11 +108,25 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
     return sinogram
 
 
+def get_full_elemental_linear_attenuation(p):
+    """
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+    els = brain.get_weighted_brain_compound(weight)
+    # reweight_compound(p.)
+
+
 def illumination_map(p, angle, i0=1.0):
     """Generates the image-sized map of intensity at each 2d pixel for a given
-    angle accounting for absorption at the incident energy by the element,
-    or compound in the case of the matrix.
-    Use the Mass Attenuation Coefficient data from NIST XAAMDI database
+    angle accounting for absorption at the incident energy by the full elemental
+    distribution.
+    Uses the Mass Attenuation Coefficient data from NIST XAAMDI database
     http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
 
     Arguments:
@@ -127,7 +141,11 @@ def illumination_map(p, angle, i0=1.0):
     px_side (um)
 
     """
-    matrix_map = zero_outside_circle(p.el_maps['matrix'])
+    linear_absorption_map = np.empty_like(p.el_maps['matrix'])
+    for m in p.el_maps:
+        linear_absorption_map += m * mac of el brain.ma(p.energy)
+
+    linear_absorption_map = zero_outside_circle(linear_absorption_map)
     im = rotate(matrix_map, -angle)
     ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
     cmam = np.cumsum(im, axis=1) * ma_t
@@ -376,6 +394,7 @@ def write_sinogram(im, p, algorithm, el='matrix'):
     im - 2d float ndarray image
     p - phantom object
     algorithm - one of
+        a - absorption
         f - fluorescence
         r - rayleigh
         c - compton
@@ -403,6 +422,7 @@ def project(p, algorithm, anglesfile):
     """This is the entry point for the sinogram project script.
     p - a phantom.Phantom2d instance.
     algorithm - one of
+        a - absorption
         f - fluorescence
         r - rayleigh
         c - compton
@@ -410,10 +430,11 @@ def project(p, algorithm, anglesfile):
         angles in degrees.
 
     """
-    assert algorithm in 'frc'
+    assert algorithm in 'afrc'
 
     anglelist = np.loadtxt(anglesfile)
-    event_type = {'f': 'fluoro', 'r': 'rayleigh', 'c': 'compton'}[algorithm]
+    event_type = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
+                  'c': 'compton'}[algorithm]
     if algorithm == 'f':
         # fluorescence sinogram
         for el in p.el_maps:
@@ -422,8 +443,8 @@ def project(p, algorithm, anglesfile):
             im = project_sinogram(event_type, p, anglelist, el)
             write_sinogram(im, p, algorithm, el)
     else:
-        # algorithm is 'r' or 'c'
-        # Rayleigh or Compton scattering sinogram of matrix
+        # algorithm is 'a', 'r' or 'c'
+        # Absorption, Rayleigh or Compton scattering sinogram of matrix
         im = project_sinogram(event_type, p, anglelist)
         write_sinogram(im, p, algorithm)
 
@@ -436,53 +457,7 @@ if __name__ == '__main__':
     DATA_DIR = os.path.join(BASE, r'tmm_model\data')
     os.chdir(DATA_DIR)
 
-    anglesfile = os.path.join(BASE, r'commands\angles.txt')
-
-    '''
-    # split golosio into elements+matrix
-    p = phantom.Phantom2d(filename='golosio_100.png', matrix_elements='N O C')
-    p.split_map(DATA_DIR)
-    '''
-
-    '''
-    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0,
-                          energy=1)
-    project(p, 'a', anglesfile)
-    '''
-
-    '''
-    p = phantom.Phantom2d(filename='golosio*matrix.tiff', um_per_px=10.0,
-                          energy=15)
-    map_and_write(p, 15)
-    '''
-
-    '''
-    p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
-
-    angle = 0.0
-    i_map = illumination_map(p, angle, I0=1.0)
-    r_map = emission_map('rayleigh', p, i_map, angle)
-    c_map = emission_map('compton', p, i_map, angle)
-
-    plt.subplot(211)
-    imshow(r_map)
-    plt.subplot(212)
-    imshow(c_map)
-    plt.show()
-    '''
-
-    '''
-    p = phantom.Phantom2d(filename='golosio*.tiff', um_per_px=10.0, energy=15)
-
-    angle = 0.0
-    i_map = illumination_map(p, angle, I0=1.0)
-    el = 'Fe'
-    e_map = fluoro_map(p, i_map, el, angle)
-
-    imshow(e_map)
-    plt.xlabel('angle')
-    plt.show()
-    '''
+    anglesfile = os.path.join(BASE, r'tmm_model\data\angles.txt')
 
     p = phantom.Phantom2d(filename='phantom1_100*.tiff', um_per_px=10.0,
                           energy=15)
