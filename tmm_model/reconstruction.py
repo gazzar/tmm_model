@@ -30,7 +30,6 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     assert algorithm in ['f', 's']
 
     el_map0 = p.el_maps[el]
-#    sinogram = np.rot90(el_map0).astype(np.float64)
     sinogram = el_map0.astype(np.float64)
     if algorithm == 'f':
         # conventional filtered backprojection

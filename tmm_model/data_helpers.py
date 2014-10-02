@@ -32,7 +32,7 @@ http://physics.nist.gov/PhysRefData/XrayMassCoef/tab2.html
                                         K  19: 0.003000
 '''
 
-Element = namedtuple('Element', 'atomic_number Z fraction')
+Element = namedtuple('Element', 'label Z fraction')
 
 # class Compound(object):
 #     """

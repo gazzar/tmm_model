@@ -312,6 +312,7 @@ class Phantom2d(object):
                     # add to the individual element map
                     m = maps[el]
                 compound_mask = (self.phantom_array & compound).astype(bool)
+                # apply density, so tiff-maps will have units of g/cm3
                 m[compound_mask] = density * weights[el]
 
         # Write tiffs
