@@ -31,6 +31,12 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
 
     el_map0 = p.el_maps[el]
     sinogram = el_map0.astype(np.float64)
+
+    # Skimage appears to use a different convention to Matlab, where the
+    # sinogram angle is measured cw rather than ccw, so negate the
+    # angles in the anglelist.
+    anglelist = -anglelist
+
     if algorithm == 'f':
         # conventional filtered backprojection
         im = iradon(sinogram, anglelist, circle=True)
@@ -45,7 +51,9 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     filenames = ['{}-{}{}'.format(
                    '-'.join(f.split('-')[:-1]), el, os.path.splitext(f)[1])
                  for f in glob.glob(pattern)]
+    print filenames
     path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
+    print base
     filename = os.path.join(path, 'r_'+base)
 
     write_tiff32(filename, im)

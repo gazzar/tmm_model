@@ -60,7 +60,7 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
     el : string, optional
         Name of element (e.g. 'Fe') used if projecting that element's
         fluorescence.
-    show_progress : bool
+    show_progress : bool, optional
         Display progress as an updating percentage iff True.
 
     Returns
@@ -77,26 +77,42 @@ def project_sinogram(event_type, p, anglelist, el=None, show_progress=False):
             sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
             sys.stdout.flush()
 
-        n_map = irradiance_map(p, angle, n0=1.0)
+        increasing_ix = True   # Set True to accumulate cmam along increasing y
+        n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
         if event_type == 'absorption':
-            sinogram[:, i] = np.log(n_map[:, 0] / n_map[:, -1])
+            if increasing_ix:
+                sinogram[:, i] = np.log(n_map[0] / n_map[-1])
+            else:
+                sinogram[:, i] = np.log(n_map[-1] / n_map[0])
         else:
             e_map = emission_map(event_type, p, n_map, angle, el)
             sinogram[:, i] = e_map.sum(axis=0)
     return sinogram
 
 
-def irradiance_map(p, angle, n0=1.0):
+def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
     """Generates the image-sized map of irradiance [1/(cm2 s)] at each 2d pixel
     for a given angle accounting for absorption at the incident energy by the
     full elemental distribution.
 
-    Arguments:
-    p - phantom object
+    Parameters
+    ----------
+    p : phantom object
         p.energy - incident beam energy (keV)
         p.um_per_px - length of one pixel of the map (um)
-    angle - angle in degrees
-    n0 - incident irradiance (default 1.0)
+    angle : float
+        angle in degrees (0 degrees is with the source below the object,
+        projecting parallel to the y-axis).
+    n0 : float
+        incident irradiance (default 1.0).
+    increasing_ix : bool, optional
+        If False, performs cumulative sum in opposite direction (in direction of
+        decreasing y-index) (default True).
+
+    Returns
+    -------
+    2d ndarray of float
+        The irradiance map.
 
     """
     # matrix_map = zero_outside_circle(p.el_maps['matrix'])
@@ -109,45 +125,16 @@ def irradiance_map(p, angle, n0=1.0):
         Z = xrl.SymbolToAtomicNumber(el)
         mu0 += xrl.CS_Total(Z, p.energy) * p.el_maps[el]
 
-    im = rotate(mu0, -angle)
+    im = rotate(mu0, angle)     # rotate by angle degrees ccw
     t = p.um_per_px / UM_PER_CM
-    cmam = t * np.cumsum(im, axis=1)
+    # accumulate along y, consistent with matlab sinogram convention. See
+    # http://www.mathworks.com/help/images/radon-transform.html
+    if increasing_ix:
+        cmam = t * np.cumsum(im, axis=0)
+    else:
+        cmam = t * np.cumsum(im[::-1], axis=0)[::-1]
     n_map = n0 * exp(-cmam)
     return n_map
-
-
-def illumination_map(p, angle, i0=1.0):
-    """Generates the image-sized map of intensity at each 2d pixel for a given
-    angle accounting for absorption at the incident energy by the full elemental
-    distribution.
-    Uses the Mass Attenuation Coefficient data from NIST XAAMDI database
-    http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
-
-    Arguments:
-    p - phantom object
-        p.energy - incident beam energy (keV)
-        p.um_per_px - length of one pixel of the map (um)
-    angle - angle in degrees
-    i0 - incident intensity (default 1.0)
-
-    matrix_map (g/cm3)
-    ma (cm2/g)
-    px_side (um)
-
-    """
-    matrix_map = zero_outside_circle(p.el_maps['matrix'])
-
-    # linear_absorption_map = np.empty_like(p.el_maps['matrix'])
-    # for m in p.el_maps:
-    #     linear_absorption_map += m * mac of el brain.ma(p.energy)
-    #
-    # linear_absorption_map = zero_outside_circle(linear_absorption_map)
-
-    im = rotate(matrix_map, -angle)
-    ma_t = brain.ma(p.energy) * p.um_per_px / UM_PER_CM
-    cmam = np.cumsum(im, axis=1) * ma_t
-    i_map = i0 * exp(-cmam)
-    return i_map
 
 
 def scattering_ma(event_type, p, row, col):
@@ -172,7 +159,7 @@ def scattering_ma(event_type, p, row, col):
     theta = pi / 2 + np.arctan(maia_d.d_mm / np.hypot(x, y))
     phi = np.arctan2(y, x)
 
-    compound = brain.brain_icru44_composition  # elemental data for brain
+    compound = brain.cp_brain_icru44  # elemental data for brain
 
     # Get the contribution to Rayleigh and Compton scattering from each
     # element in the matrix compound and sum these.
@@ -276,7 +263,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
     Returns
     -------
     1d ndarray of float
-        The accumulated flux in Maia detector row 7 for the requested edge
+        The accumulated flux in Maia detector row 7 for the requested edge.
 
     """
     assert event_type in ['rayleigh', 'compton', 'fluoro']
@@ -291,7 +278,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
     k_alpha_energy = -1
     if event_type == 'fluoro':
         edge_map = zero_outside_circle(p.el_maps[el])
-        edge_map_r = rotate(edge_map, -angle)
+        edge_map_r = rotate(edge_map, angle)
         del edge_map
 
         # Do this here because we're outside the detector channel loop.
@@ -389,13 +376,13 @@ def write_sinogram(im, p, event_type, el='matrix'):
 
     Parameters
     ----------
-    im - 2d float ndarray
-        sinogram
-    p - Phantom2d object
-    event_type - string
+    im : 2d ndarray of float
+        sinogram.
+    p : Phantom2d object
+    event_type : string
         One of ['absorption', 'rayleigh', 'compton', 'fluoro'].
-    el - string
-        name of current element, e.g. 'Fe'. default ('matrix')
+    el : string
+        name of current element, e.g. 'Fe'. (default 'matrix').
 
     """
     # Get the filename that matches the glob pattern for this element
@@ -422,10 +409,10 @@ def project(p, event_type, anglesfile):
 
     Parameters
     ----------
-    p - Phantom2d object
-    event_type - string
+    p : Phantom2d object
+    event_type : string
         One of 'afrc'.
-    anglesfile - string
+    anglesfile : string
         Path to a textfile containing ordered list of projection
         angles in degrees.
 
@@ -478,4 +465,3 @@ if __name__ == '__main__':
                       'c': 'compton'}[event_type]
         print('\n' + event_name)
         project(p, event_type, anglesfile)
-
