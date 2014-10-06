@@ -32,11 +32,6 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     el_map0 = p.el_maps[el]
     sinogram = el_map0.astype(np.float64)
 
-    # Skimage appears to use a different convention to Matlab, where the
-    # sinogram angle is measured cw rather than ccw, so negate the
-    # angles in the anglelist.
-    anglelist = -anglelist
-
     if algorithm == 'f':
         # conventional filtered backprojection
         im = iradon(sinogram, anglelist, circle=True)

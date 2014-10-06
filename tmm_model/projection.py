@@ -107,7 +107,10 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
         incident irradiance (default 1.0).
     increasing_ix : bool, optional
         If False, performs cumulative sum in opposite direction (in direction of
-        decreasing y-index) (default True).
+        decreasing y-index). Note, for the standard Radon transform,
+        this direction is unimportant, but for the Radon transform with
+        attenuation, we should project in the beam propagation direction.
+        (default True).
 
     Returns
     -------
@@ -125,10 +128,13 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
         Z = xrl.SymbolToAtomicNumber(el)
         mu0 += xrl.CS_Total(Z, p.energy) * p.el_maps[el]
 
-    im = rotate(mu0, angle)     # rotate by angle degrees ccw
+    # project at angle theta by rotating the phantom by angle -theta and
+    # projecting along the z-axis (along columns)
+    im = rotate(mu0, -angle)     # rotate by angle degrees ccw
     t = p.um_per_px / UM_PER_CM
-    # accumulate along y, consistent with matlab sinogram convention. See
-    # http://www.mathworks.com/help/images/radon-transform.html
+    # accumulate along z-axis (image defined in xz-coordinates, so accumulate
+    # along image rows), consistent with matlab sinogram convention.
+    # See http://www.mathworks.com/help/images/radon-transform.html
     if increasing_ix:
         cmam = t * np.cumsum(im, axis=0)
     else:
