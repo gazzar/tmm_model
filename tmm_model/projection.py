@@ -247,9 +247,9 @@ def compton_scattered_energy(energy_in, row, col):
     return xrl.ComptonEnergy(energy_in, theta)
 
 
-def emission_map(event_type, p, i_map, angle, el=None):
+def emission_map(event_type, p, n_map, angle, el=None):
     """Compute the maia-detector-shaped map of Rayleigh, Compton or K-edge
-    fluorescence from the element map for a uniform incident intensity I0.
+    fluorescence from the element map for an incident irradiance map n_map.
 
     Parameters
     ----------
@@ -258,8 +258,8 @@ def emission_map(event_type, p, i_map, angle, el=None):
     p : Phantom2d object
         p.energy - incident beam photon energy (keV).
         p.um_per_px - length of one pixel of the map (um).
-    i_map : 2d ndarray of float
-        Map of incident intensity.
+    n_map : 2d ndarray of float
+        Map of incident irradiance.
     angle : float
         Stage rotation angle (degrees).
     el : string, optional
@@ -296,7 +296,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
         assert k_alpha_energy < p.energy
 
     # 2d accumulator for results
-    accumulator = np.empty((maia_d.shape[1], i_map.shape[0]))
+    accumulator = np.empty((maia_d.shape[1], n_map.shape[0]))
 
     # Iterate over maia detector elements in theta, i.e. maia columns
     # This should be parallelizable
@@ -317,7 +317,7 @@ def emission_map(event_type, p, i_map, angle, el=None):
         # For every maia detector element, get the solid angle (parallelize?)
         # Orient the maps toward the maia element
         # TODO: check sign of delta: +ve or -ve?
-        imap_rm = rotate(i_map, -delta_theta_x)
+        imap_rm = rotate(n_map, -delta_theta_x)
         matrix_map_rm = rotate(matrix_map_r, -delta_theta_x)
 
         # Rotate the geometry so that the detector is on the bottom, so we can

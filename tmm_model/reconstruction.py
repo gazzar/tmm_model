@@ -15,6 +15,9 @@ from helpers import write_tiff32
 import glob, fnmatch
 
 
+UM_PER_CM = 1e4
+
+
 def reconstruct_and_write(p, el, algorithm, anglelist=None):
     """Reconstruct from a sinogram
 
@@ -31,6 +34,11 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
 
     el_map0 = p.el_maps[el]
     sinogram = el_map0.astype(np.float64)
+
+    # Rescale sinogram pixel quantities based on pixel side length.
+    # The sinogram is a map of some quantity q per pixel,
+    # which needs to be rescaled to units of [q]/cm.
+    sinogram *= UM_PER_CM/p.um_per_px
 
     if algorithm == 'f':
         # conventional filtered backprojection

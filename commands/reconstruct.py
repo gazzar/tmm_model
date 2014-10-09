@@ -47,6 +47,8 @@ parser.add_argument('-a', '--anglelist', action='store', default='angles.txt',
                     help=textwrap.dedent('''Filename of textfile containing
                                           list of projection angles, e.g.
                                           angles.txt'''))
+parser.add_argument('-s', '--scale', type=float, default=10.0,
+                    help='scale (um/px) (default 10.0)')
 
 args = vars(parser.parse_args())
 
@@ -54,7 +56,8 @@ args = vars(parser.parse_args())
 filepattern = args['filepattern']
 method = args['method']
 anglelist = args['anglelist']
+scale = args['scale']
 n = args['n']
 
-p = phantom.Phantom2d(filename=filepattern)
+p = phantom.Phantom2d(filename=filepattern, um_per_px=scale)
 reconstruction.reconstruct(p, method, anglelist)
