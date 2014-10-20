@@ -27,7 +27,7 @@ from scipy.special import expm1
 import xraylib as xrl
 
 from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
-from data_helpers import brain_properties, reweight_compound
+from data_helpers import MatrixProperties
 from maia import Maia
 
 
@@ -36,7 +36,6 @@ J_PER_KEV = 1e3 * sc.eV
 deg_to_rad = lambda x: x / 180 * pi
 rad_to_deg = lambda x: x * 180 / pi
 
-brain = brain_properties()  # brain data object instance
 maia_d = Maia()  # Maia detector object singleton
 
 
@@ -111,7 +110,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
 
     """
     # The linear absorption map mu = ma_M * mu_M + sum_k ( ma_k * mu_k )
-    mu = brain.ma(energy) * p.el_maps['matrix']
+    mu = p.matrix.ma(energy) * p.el_maps['matrix']
     for el in p.el_maps:
         if el == 'matrix':
             continue
@@ -148,7 +147,9 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     return mu * t / np.cos(phi_y)
 
 
-def project_sinogram(event_type, p, q, anglelist, el=None, show_progress=False):
+def project_sinogram(event_type, p, q, anglelist, el=None,
+                     show_progress=False, no_in_absorption=False,
+                     no_out_absorption=False):
     """Generates the sinogram of the requested element accounting for
     absorption by the matrix defined by the matrix_map, and the geometry.
     Physical units used:
@@ -172,6 +173,10 @@ def project_sinogram(event_type, p, q, anglelist, el=None, show_progress=False):
         fluorescence.
     show_progress : bool, optional
         Display progress as an updating percentage iff True.
+    no_in_absorption : bool, optional
+        If True, incident absorption is disabled. (default False).
+    no_out_absorption : bool, optional
+        If True, outgoing absorption is disabled. (default False).
 
     Returns
     -------
@@ -188,15 +193,20 @@ def project_sinogram(event_type, p, q, anglelist, el=None, show_progress=False):
             sys.stdout.flush()
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
-        n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
-        e_map = channel_emission_map(event_type, p, q, n_map, angle, el)
+        n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix,
+                               no_in_absorption=no_in_absorption)
+        e_map = channel_fluoro_map(p, q, n_map, angle, el)
         energy = outgoing_photon_energy(event_type, p, q, el)
         c = outgoing_cmam(p, q, angle, energy, increasing_ix=increasing_ix)
-        sinogram[:, i] = (e_map * np.exp(-c)).sum(axis=0)
+        if no_out_absorption:
+            sinogram[:, i] = e_map.sum(axis=0)
+        else:
+            sinogram[:, i] = (e_map * np.exp(-c)).sum(axis=0)
     return sinogram
 
 
-def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
+def irradiance_map(p, angle, n0=1.0, increasing_ix=True,
+                   no_in_absorption=False):
     """Generates the image-sized map of irradiance [1/(cm2 s)] at each 2d pixel
     for a given angle accounting for absorption at the incident energy by the
     full elemental distribution.
@@ -217,6 +227,8 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
         this direction is unimportant, but for the Radon transform with
         attenuation, we should project in the beam propagation direction.
         (default True).
+    no_in_absorption : bool, optional
+        If True, incident absorption is disabled. (default False).
 
     Returns
     -------
@@ -227,7 +239,7 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
     # matrix_map = zero_outside_circle(p.el_maps['matrix'])
 
     # The linear absorption map mu0 = ma_M * mu_M + sum_k ( ma_k * mu_k )
-    mu0 = brain.ma(p.energy) * p.el_maps['matrix']
+    mu0 = p.matrix.ma(p.energy) * p.el_maps['matrix']
     for el in p.el_maps:
         if el == 'matrix':
             continue
@@ -245,7 +257,10 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
         cmam = t * np.cumsum(im, axis=0)
     else:
         cmam = t * np.cumsum(im[::-1], axis=0)[::-1]
-    n_map = n0 * exp(-cmam)
+    if no_in_absorption:
+        n_map = n0
+    else:
+        n_map = n0 * exp(-cmam)
     return n_map
 
 
@@ -267,11 +282,11 @@ def scattering_ma(event_type, p, row, col):
     assert event_type in ['rayleigh', 'compton']
 
     # Get spherical angles (polar theta & azimuthal phi) to detector element
-    y, x = maia_d.yx(row, col)
-    theta = pi / 2 + np.arctan(maia_d.d_mm / np.hypot(x, y))
-    phi = np.arctan2(y, x)
+        # Get spherical angles (polar theta & azimuthal phi) to detector element
+    theta = maia_d.maia_data_column_from_id(q, 'theta')
+    phi = maia_d.maia_data_column_from_id(q, 'phi')
 
-    compound = brain.cp_brain_icru44  # elemental data for brain
+    compound = p.matrix.cp  # elemental data for matrix compound
 
     # Get the contribution to Rayleigh and Compton scattering from each
     # element in the matrix compound and sum these.
@@ -282,7 +297,7 @@ def scattering_ma(event_type, p, row, col):
         # http://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/
         # 3D_Spherical.svg/200px-3D_Spherical.svg.png
         # i.e. spherical coordinates with polar angle theta, azimuthal angle phi
-        z = compound[el].Z
+        z = xrl.SymbolToAtomicNumber(compound[el])
 
         # Mass attenuation coefficients from cross-sections. See
         # http://physics.nist.gov/PhysRefData/XrayMassCoef/chap2.html
@@ -293,7 +308,7 @@ def scattering_ma(event_type, p, row, col):
             f = xrl.DCSP_Rayl
         else:
             f = xrl.DCSP_Compt
-        ma += compound[el].fraction * f(z, p.energy, theta, phi)
+        ma += compound[el] * f(z, p.energy, theta, phi)
     return ma
 
 
@@ -315,9 +330,8 @@ def compton_scattered_energy(energy_in, q):
 
     """
     # Get polar scattering angle (theta) to detector element
-    y = maia_d.maia_data_column_from_id(q, 'Row')
-    x = maia_d.maia_data_column_from_id(q, 'Column')
-    theta = pi / 2 + np.arctan(maia_d.d_mm / np.hypot(x, y))
+    # Get spherical angles (polar theta & azimuthal phi) to detector element
+    theta = maia_d.maia_data_column_from_id(q, 'theta')
 
     # energy_out = 1.0 / (1.0/energy_in +
     # (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
@@ -454,7 +468,7 @@ def old_emission_map(event_type, p, n_map, angle, el=None):
 '''
 
 
-def outgoing_photon_energy(event_type, p, q, el=None):
+def outgoing_photon_energy(event_type, p, q=None, el=None):
     """Return the interaction-type-dependent outgoing photon energy in keV.
 
     Parameters
@@ -464,7 +478,7 @@ def outgoing_photon_energy(event_type, p, q, el=None):
     p : Phantom2d object
         p.energy - incident beam photon energy (keV).
         p.um_per_px - length of one pixel of the map (um).
-    q : int
+    q : int (optional, required for compton interaction)
         Maia detector channel id
     el : string (optional, required for fluoro interaction)
         Name of fluorescing element (e.g. 'Fe').
@@ -493,14 +507,12 @@ def outgoing_photon_energy(event_type, p, q, el=None):
     return energy
 
 
-def emission_map(event_type, p, n_map, angle, el):
+def fluoro_emission_map(p, n_map, angle, el):
     """Compute the maia-detector-shaped map of K-edge
     fluorescence from the element map for an incident irradiance map n_map.
 
     Parameters
     ----------
-    event_type : string
-        One of ['rayleigh', 'compton', 'fluoro'].
     p : Phantom2d object
         p.energy - incident beam photon energy (keV).
         p.um_per_px - length of one pixel of the map (um).
@@ -517,8 +529,6 @@ def emission_map(event_type, p, n_map, angle, el):
         The fluorescence emission map for the requested edge.
 
     """
-    assert event_type in ['fluoro']
-
     edge_map = zero_outside_circle(p.el_maps[el])
     edge_map_r = rotate(edge_map, -angle)
     del edge_map
@@ -543,8 +553,8 @@ def emission_map(event_type, p, n_map, angle, el):
 
 
 def channel_emission_map(event_type, p, q, n_map, angle, el):
-    """Compute the maia-detector-shaped map of K-edge
-    fluorescence from the element map for an incident irradiance map n_map.
+    """Select and defer to the interaction-type-specific emission map
+    computation.
 
     Parameters
     ----------
@@ -568,9 +578,115 @@ def channel_emission_map(event_type, p, q, n_map, angle, el):
         The fluorescence emission map for the requested edge.
 
     """
+    assert event_type in ['rayleigh', 'compton', 'fluoro']
+
+    if event_type == 'fluoro':
+        e_map = channel_fluoro_map(p, q, n_map, angle, el)
+    elif event_type == 'rayleigh':
+        e_map = channel_rayleigh_map(p, q, n_map, angle)
+    elif event_type == 'compton':
+        e_map = channel_compton_map(p, q, n_map, angle)
+    else:
+        raise RuntimeError('Brain explodes')
+
+    return e_map
+
+
+def channel_fluoro_map(p, q, n_map, angle, el):
+    """Compute the maia-detector-shaped map of K-edge
+    fluorescence from the element map for an incident irradiance map n_map.
+
+    Parameters
+    ----------
+    p : Phantom2d object
+        p.energy - incident beam photon energy (keV).
+        p.um_per_px - length of one pixel of the map (um).
+    q : int
+        Maia detector channel id
+    n_map : 2d ndarray of float
+        Map of incident irradiance.
+    angle : float
+        Stage rotation angle (degrees).
+    el : string
+        Name of fluorescing element (e.g. 'Fe').
+
+    Returns
+    -------
+    2d ndarray of float
+        The fluorescence emission map for the requested edge.
+
+    """
     solid_angle = maia_d.maia_data_column_from_id(q, 'omega')
     return (solid_angle / 4 / np.pi *
-            emission_map(event_type, p, n_map, angle, el))
+            fluoro_emission_map(p, n_map, angle, el))
+
+
+def channel_rayleigh_map(p, q, n_map, angle):
+    """Compute the maia-detector-shaped map of Rayleigh scattering
+    from the element map for an incident irradiance map n_map.
+
+    Parameters
+    ----------
+    p : Phantom2d object
+        p.energy - incident beam photon energy (keV).
+        p.um_per_px - length of one pixel of the map (um).
+    q : int
+        Maia detector channel id
+    n_map : 2d ndarray of float
+        Map of incident irradiance.
+    angle : float
+        Stage rotation angle (degrees).
+    el : string
+        Name of fluorescing element (e.g. 'Fe').
+
+    Returns
+    -------
+    2d ndarray of float
+        The fluorescence emission map for the requested edge.
+
+    """
+    solid_angle = maia_d.maia_data_column_from_id(q, 'omega')
+
+    # Get spherical angles (polar theta & azimuthal phi) to detector element
+    theta = maia_d.maia_data_column_from_id(q, 'theta')
+    phi = maia_d.maia_data_column_from_id(q, 'phi')
+
+    energy = outgoing_photon_energy('rayleigh', p)
+
+    # get a list of all elements el and their weights w_el
+
+    # The absorption map mu = ma_M * mu_M + sum_k ( ma_k * mu_k )
+    mu = p.matrix.ma(energy) * p.el_maps['matrix']
+    for el in p.el_maps:
+        if el == 'matrix':
+            continue
+        Z = xrl.SymbolToAtomicNumber(el)
+        mu += p.matrix.cp[el] * xrl.DCSP_Rayl(Z, energy, theta, phi) * \
+              p.el_maps[el]
+
+    ma += xrl.DCSP_Rayl(Z, energy, theta, phi)
+
+    edge_map = zero_outside_circle(p.el_maps[el])
+    edge_map_r = rotate(edge_map, -angle)
+    del edge_map
+
+    # Get Z for the fluorescing element
+    el_z = xrl.SymbolToAtomicNumber(el)
+    line = xrl.KA_LINE
+
+    # Sanity check that el K_alpha is below the incident energy.
+    k_alpha_energy = xrl.LineEnergy(el_z, line)
+    assert k_alpha_energy < p.energy
+
+    # Simulate fluorescence event:
+    # CS_FluorLine_Kissel_Cascade is the XRF cross section Q_{i,YX} in Eq. (12)
+    # of Schoonjans et al.
+    Q = xrl.CS_FluorLine_Kissel_Cascade(el_z, line, p.energy)
+
+    # 2d array for results
+    emission_map = n_map * Q * edge_map_r * p.um_per_px / UM_PER_CM
+
+    return emission_map
 
 
 def write_sinogram(im, p, event_type, el='matrix'):
@@ -606,7 +722,8 @@ def write_sinogram(im, p, event_type, el='matrix'):
     write_tiff32(s_filename, im)
 
 
-def project(p, event_type, anglesfile):
+def project(p, event_type, anglesfile, no_in_absorption=False,
+            no_out_absorption=False):
     """This is the entry point for the sinogram project script.
     Performs the projection at all specified angles and writes the resulting
     sinograms out as tiffs.
@@ -619,6 +736,10 @@ def project(p, event_type, anglesfile):
     anglesfile : string
         Path to a textfile containing ordered list of projection
         angles in degrees.
+    no_in_absorption : bool, optional
+        If True, incident absorption is disabled. (default False).
+    no_out_absorption : bool, optional
+        If True, outgoing absorption is disabled. (default False).
 
     """
     assert event_type in 'afrc'
@@ -626,7 +747,7 @@ def project(p, event_type, anglesfile):
                   'c': 'compton'}[event_type]
 
     anglelist = np.loadtxt(anglesfile)
-    q = int(maia_d.channel(4, 4).index)        # TODO: remove hard-coded channel
+    q = int(maia_d.channel(7, 7).index)        # TODO: remove hard-coded channel
     if event_type == 'absorption':
         im = absorption_sinogram(p, anglelist)
         write_sinogram(im, p, event_type)
@@ -635,12 +756,16 @@ def project(p, event_type, anglesfile):
         for el in p.el_maps:
             if el == 'matrix':
                 continue
-            im = project_sinogram(event_type, p, q, anglelist, el)
+            im = project_sinogram(event_type, p, q, anglelist, el,
+                                  no_in_absorption=no_in_absorption,
+                                  no_out_absorption=no_out_absorption)
             write_sinogram(im, p, event_type, el)
     else:
         # event_type is 'rayleigh' or 'compton'
         # Absorption, Rayleigh or Compton scattering sinogram of matrix
-        im = project_sinogram(event_type, p, q, anglelist)
+        im = project_sinogram(event_type, p, q, anglelist,
+                              no_in_absorption=no_in_absorption,
+                              no_out_absorption=no_out_absorption)
         write_sinogram(im, p, event_type)
 
 
@@ -648,22 +773,29 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import phantom
 
+    no_in_absorption=False
+    no_out_absorption=False
+
     BASE = r'R:\Science\XFM\GaryRuben\projects\TMM'
-    DATA_DIR = os.path.join(BASE, r'work\data')
+    DATA_DIR = os.path.join(BASE, r'work\20141016')
     os.chdir(DATA_DIR)
 
-    anglesfile = os.path.join(BASE, r'work\data\angles.txt')
+    anglesfile = os.path.join(BASE, r'work\20141016\angles.txt')
 
-    p = phantom.Phantom2d(filename='phantom1_100*.tiff', um_per_px=10.0,
+    p = phantom.Phantom2d(filename='phantom1*.tiff',
+                          yamlfile='phantom1-Fe.yaml',
+                          um_per_px=12.52,
                           energy=15)
 
     anglelist = np.loadtxt(anglesfile, dtype=int)
-    el = 'Zn'
+    el = 'Fe'
     # sinogram = absorption_sinogram(p, anglelist, el, show_progress=True)
     # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
-    q = int(maia_d.channel(4, 4).index)
+    q = int(maia_d.channel(7, 7).index)
     sinogram = project_sinogram('fluoro', p, q, anglelist, el,
-                                show_progress=True)
+                                show_progress=True,
+                                no_in_absorption=no_in_absorption,
+                                no_out_absorption=no_out_absorption)
 
     # np.save('sino'+el, sinogram)
     imshow(sinogram, extent=[0, 360, 0, 99], aspect=2, cmap='cubehelix')
