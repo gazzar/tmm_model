@@ -23,6 +23,7 @@ from skimage.transform import rotate
 import matplotlib.pyplot as plt
 from collections import Iterable
 from helpers import write_tiff32, read_tiff32
+from data_helpers import MatrixProperties
 import yaml
 import glob
 
@@ -77,16 +78,20 @@ class Phantom2d(object):
 
     """
     def __init__(self, size=None, um_per_px=1.0, energy=15, filename=None,
-                  matrix_elements=''):
+                 yamlfile='', matrix_elements=''):
         """
-        Arguments:
-        size - (rows,cols) in px
-        um_per_px - um_per_px, e.g. 0.1 defines a scale of 0.1 um/px
-        energy - incident energy (keV)
-        filename - if not None, passed to self.read_map() to create the phantom
+        Parameters
+        ----------
+        size : (rows,cols) in px
+        um_per_px : um_per_px, e.g. 0.1 defines a scale of 0.1 um/px
+        energy : incident energy (keV)
+        filename : string
+            if not None, passed to self.read_map() to create the phantom
             from a greyscale image map filename.png and compound data
             filename.yaml
-        matrix_elements - space-separated string of elements in the matrix.
+        yamlfile : string
+            used with filename; contains compound data, e.g. 'filename.yaml'
+        matrix_elements : space-separated string of element names
             default = empty-string ""
 
         """
@@ -94,6 +99,7 @@ class Phantom2d(object):
         self.el_maps = {}       # container for elemental maps
         self.matrix_elements = matrix_elements
         self.filename = filename
+        self.yamlfile = yamlfile
         self.energy = energy
         self.um_per_px = float(um_per_px)
         if filename is not None:
@@ -104,11 +110,14 @@ class Phantom2d(object):
                 # If filename has a png extension, first read the .png map and
                 # .yaml composition then write the per-element tiffs
                 self.phantom_array = self._read_map(filename)
-                self.compounds = self._read_composition(filename)
+                self.compounds = self._read_composition(self.yamlfile)
                 self.split_map(basedir)
                 filename = os.path.join(basedir, basename_noext+'*.tiff')
             else:
                 self.phantom_array = np.zeros(size, dtype=int)
+            # TODO: Remove this huge kludge:
+            if basename_noext[1] != '_':
+                self.matrix = MatrixProperties(self)
             # read tiffs
             self._read_tiffs(filename)
         else:
@@ -227,23 +236,18 @@ class Phantom2d(object):
 
 
     @staticmethod
-    def _read_composition(filename):
+    def _read_composition(yamlfile):
         """Read phantom compound composition data from a yaml file.
 
         Arguments:
-        filename - string or file handle corresponding to a file
-                   filename[_ext].yaml
-                   If the filename contains the optional _ext portion, this will
-                   be ignored. This enables a composition map to apply to many
-                   geometry maps.
+        yamlfile - string or file handle corresponding to a file
+                   filename.yaml
 
         Returns:
         composition data - see golosio_compounds above for example
 
         """
-        pathname, basename = os.path.split(filename)
-        filename = os.path.join(pathname, basename.split('_')[0])
-        with open(filename+'.yaml') as f:
+        with open(yamlfile) as f:
             comp = yaml.load(f)
         return comp
 
