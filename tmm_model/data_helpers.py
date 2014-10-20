@@ -4,6 +4,7 @@ from scipy import interpolate
 import xraylib as xrl
 from collections import namedtuple
 import os
+import glob
 
 '''
 # Gain access to tmm_model when running locally or as an imported module
@@ -32,6 +33,7 @@ http://physics.nist.gov/PhysRefData/XrayMassCoef/tab2.html
                                         K  19: 0.003000
 '''
 
+'''
 Element = namedtuple('Element', 'label Z fraction')
 
 # class Compound(object):
@@ -75,61 +77,29 @@ def reweight_compound(compound, weight):
     """
     assert 0.0 <= weight <= 1.0
     return [el._replace(fraction=el.fraction * weight) for el in compound]
+'''
 
-
-class brain_properties(object):
-    """A class wrapping the NIST ICRU_44 data for brain tissue
+class MatrixProperties(object):
+    """A class exposing the matrix properties
     Example:
-    b = brain_data()
+    p = Phantom2d(filename)
+    b = MatrixProperties(p)
     b.ma(13)
 
     """
-    def __init__(self):
-        self.cp_brain_icru44_density = cp_brain_icru44_density
+    def __init__(self, p):
+        self.compounds = p._read_composition(p.yamlfile)
+        self.compound_ix = [k for k, v in self.compounds.items()
+                            if len(v[1]) > 1][0]
+        self.density, self.cp = self.compounds[self.compound_ix]
 
     def ma(self, energy):
-        return sum([el.fraction * xrl.CS_Total(el.Z, energy) for el in
-                    cp_brain_icru44])
+        return sum([self.cp[el] * xrl.CS_Total(
+            xrl.SymbolToAtomicNumber(el), energy) for el in self.cp])
 
-    @property
-    def density(self):
-        return self.cp_brain_icru44_density
+    # @property
+    # def density(self):
+    #     return self.density
 
-    def get_weighted_brain_compound(self, weight):
-        return reweight_compound(cp_brain_icru44, weight)
-
-
-if __name__ == "__main__":
-    b = brain_properties()
-    print b.ma(1)
-    print b.ma(1.01)
-    print b.ma(1.07)
-    print 
-    print b.ma(1.073)
-    print b.ma(2.145)
-    print 
-    print b.ma(2.15)
-    print b.ma(2.47)
-    print 
-    print b.ma(2.475)
-    print b.ma(2.82)
-    print 
-    print b.ma(2.83)
-    print b.ma(3.6)
-    print 
-    print b.ma(3.61)
-    print b.ma(21)
-
-    # print b.brain_table.mu_cm2_g.values
-
-#     import matplotlib.pyplot as plt
-# #     xs = b.brain_table.Energy_MeV.values
-#     xs = np.logspace(-3, np.log10(b.brain_table.Energy_MeV.values[-1]-1), 10000)
-#     ys = np.array([b.ma(x*1000) for x in xs])
-#
-#     plt.loglog(xs, ys, '.-')
-#     plt.show()
-
-    print b.cp_brain_icru44_density
-    print b.get_weighted_brain_compound(1)
-    print b.get_weighted_brain_compound(0.5)
+    # def get_weighted_brain_compound(self, weight):
+    #     return reweight_compound(self.matrix_cp, weight)
