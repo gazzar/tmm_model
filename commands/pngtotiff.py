@@ -33,8 +33,10 @@ parser = argparse.ArgumentParser(
     )
 parser.add_argument('filepattern', action='store',
                     help=textwrap.dedent('''filepattern e.g. golosio_100 reads
-                                          golosio_100.png and golosio.yaml and
-                                          writes files golosio_100-x.tiff'''))
+                                         golosio_100.png and writes files
+                                         golosio_100-x.tiff'''))
+parser.add_argument('yamlfile', action='store',
+                    help='yamlfile e.g. golosio.yaml')
 parser.add_argument('-m', '--matrix', action='store', default='',
                     help=textwrap.dedent('define the matrix elements\
                                           e.g. NOHC, SiN'))
@@ -46,5 +48,7 @@ matrix_elements = args['matrix']
 matrix_elements = re.sub(r'([a-z]*)([A-Z])',r'\1 \2', matrix_elements).strip()
 
 filename = args['filepattern']
-p = phantom.Phantom2d(filename=filename, matrix_elements=matrix_elements)
+yamlfile = args['yamlfile']
+p = phantom.Phantom2d(filename=filename, yamlfile=yamlfile,
+                      matrix_elements=matrix_elements)
 p.split_map(os.path.dirname(filename))
