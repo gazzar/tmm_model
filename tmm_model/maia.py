@@ -32,17 +32,22 @@ class Maia(object):
 
         # Calculate and append area and solid angle columns
         # then make some 2D maps for plotting and comparison
-    
+        x = self.maia_data.X
+        y = self.maia_data.Y
+
         a_mm = self.maia_data['width']
         b_mm = self.maia_data['height']
-        A_mm = abs(self.maia_data['X']) - a_mm/2
-        B_mm = abs(self.maia_data['Y']) - b_mm/2
+        A_mm = abs(x) - a_mm/2
+        B_mm = abs(y) - b_mm/2
     
         self.maia_data['area_mm2'] = a_mm * b_mm
         self.maia_data['omega'] = self.v_getOmega(self, A_mm, B_mm,
                                                         a_mm, b_mm, d_mm)
-        self.maia_data['angle_X_rad'] = np.arctan(self.maia_data.X/d_mm)
-        self.maia_data['angle_Y_rad'] = np.arctan(self.maia_data.Y/d_mm)
+        self.maia_data['angle_X_rad'] = np.arctan(x / d_mm)
+        self.maia_data['angle_Y_rad'] = np.arctan(y / d_mm)
+
+        self.maia_data['theta'] = np.pi / 2 + np.arctan(d_mm / np.hypot(x, y))
+        self.maia_data['phi'] = np.arctan2(y, x)
 
 
     def _rect_solid_angle(self, a, b, d):
