@@ -45,8 +45,7 @@ parser.add_argument('-n', type=int,
                     '''Number of iterations - ignored if not using SART'''))
 parser.add_argument('-a', '--anglelist', action='store', default='angles.txt',
                     help=textwrap.dedent('''Filename of textfile containing
-                                          list of projection angles, e.g.
-                                          angles.txt'''))
+                        list of projection angles, e.g. angles.txt'''))
 parser.add_argument('-s', '--scale', type=float, default=10.0,
                     help='scale (um/px) (default 10.0)')
 
