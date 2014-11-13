@@ -16,6 +16,7 @@ data structure defined in a yaml file.
 
 from __future__ import print_function
 import os
+import logging
 import numpy as np
 from imageio import imread
 from skimage import img_as_ubyte
@@ -265,6 +266,7 @@ class Phantom2d(object):
             assert('-' in f)
             basename, _ = os.path.splitext(f)
             el = basename.split('-')[-1]
+            logging.info('reading tiff: ', f)
             im = read_tiff32(f)
             self.rows, self.cols = im.shape
 

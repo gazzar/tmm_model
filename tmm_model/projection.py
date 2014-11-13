@@ -15,8 +15,8 @@ data structure defined in a yaml file.
 """
 
 from __future__ import print_function
-import sys
 import os
+import logging
 import glob
 import fnmatch
 
@@ -69,8 +69,9 @@ def absorption_sinogram(p, anglelist, el=None, show_progress=False):
     sinogram = np.empty((p.cols, len(anglelist)))
     for i, angle in enumerate(anglelist):
         if show_progress:
-            sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
-            sys.stdout.flush()
+            # sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
+            # sys.stdout.flush()
+            logging.info("\r{:.0%}".format(float(i) / len(anglelist)))
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
         n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
@@ -189,8 +190,9 @@ def project_sinogram(event_type, p, q, anglelist, el=None,
     sinogram = np.empty((p.cols, len(anglelist)))
     for i, angle in enumerate(anglelist):
         if show_progress:
-            sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
-            sys.stdout.flush()
+            # sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
+            # sys.stdout.flush()
+            logging.info("\r{:.0%}".format(float(i) / len(anglelist)))
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
         n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix,
@@ -495,7 +497,7 @@ def outgoing_photon_energy(event_type, p, q=None, el=None):
         el_z = xrl.SymbolToAtomicNumber(el)
         line = xrl.KA_LINE
         energy = xrl.LineEnergy(el_z, line)
-        assert energy < p.energy
+        #assert energy < p.energy
         return energy
 
     energy = {
@@ -539,12 +541,15 @@ def fluoro_emission_map(p, n_map, angle, el):
 
     # Sanity check that el K_alpha is below the incident energy.
     k_alpha_energy = xrl.LineEnergy(el_z, line)
-    assert k_alpha_energy < p.energy
-
-    # Simulate fluorescence event:
-    # CS_FluorLine_Kissel_Cascade is the XRF cross section Q_{i,YX} in Eq. (12)
-    # of Schoonjans et al.
-    Q = xrl.CS_FluorLine_Kissel_Cascade(el_z, line, p.energy)
+    #assert k_alpha_energy < p.energy
+    if k_alpha_energy >= p.energy:
+        Q = 0.0
+    else:
+        # Simulate fluorescence event:
+        # CS_FluorLine_Kissel_Cascade is the XRF cross section Q_{i,YX} in Eq. (12)
+        # of Schoonjans et al.
+        Q = xrl.CS_FluorLine_Kissel_Cascade(el_z, line, p.energy)
+        # print(el, end=' ')
 
     # 2d array for results
     emission_map = n_map * Q * edge_map_r * p.um_per_px / UM_PER_CM
@@ -742,6 +747,10 @@ def project(p, event_type, anglesfile, no_in_absorption=False,
         If True, outgoing absorption is disabled. (default False).
 
     """
+    logging.basicConfig(level=logging.WARNING, format="%(msg)s")
+    if options.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
     assert event_type in 'afrc'
     event_type = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
                   'c': 'compton'}[event_type]
@@ -782,16 +791,17 @@ if __name__ == '__main__':
 
     anglesfile = os.path.join(BASE, r'work\20141016\angles.txt')
 
+    el = 'Cu'
+
     p = phantom.Phantom2d(filename='phantom1*.tiff',
-                          yamlfile='phantom1-Fe.yaml',
+                          yamlfile='phantom1-%s.yaml'%el,
                           um_per_px=12.52,
-                          energy=15)
+                          energy=9)
 
     anglelist = np.loadtxt(anglesfile, dtype=int)
-    el = 'Fe'
     # sinogram = absorption_sinogram(p, anglelist, el, show_progress=True)
     # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
-    q = int(maia_d.channel(7, 7).index)
+    q = int(maia_d.channel(7, 7).index[0])
     sinogram = project_sinogram('fluoro', p, q, anglelist, el,
                                 show_progress=True,
                                 no_in_absorption=no_in_absorption,

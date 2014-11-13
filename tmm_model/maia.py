@@ -253,7 +253,7 @@ if __name__ == '__main__':
     d_mm = 10.0
     det_px_mm = 0.4
 
-    print det.solid_angle(9, 7)
+    print det.solid_angle(7, 7)
 
     # Location of Matt's CSV file that has the collimator info in it.
     dirPath = "."
