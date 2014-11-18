@@ -15,6 +15,7 @@ data structure defined in a yaml file.
 """
 
 from __future__ import print_function
+import config
 import os
 import logging
 import glob
@@ -29,6 +30,7 @@ import xraylib as xrl
 from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
 from data_helpers import MatrixProperties
 from maia import Maia
+from progressbar import ProgressBar
 
 
 UM_PER_CM = 1e4
@@ -39,7 +41,7 @@ rad_to_deg = lambda x: x * 180 / pi
 maia_d = Maia()  # Maia detector object singleton
 
 
-def absorption_sinogram(p, anglelist, el=None, show_progress=False):
+def absorption_sinogram(p, anglelist, el=None):
     """Generates the sinogram of the requested element accounting for
     absorption by the matrix defined by the matrix_map, and the geometry.
     Physical units used:
@@ -57,8 +59,6 @@ def absorption_sinogram(p, anglelist, el=None, show_progress=False):
     el : string, optional
         Name of element (e.g. 'Fe') used if projecting that element's
         fluorescence.
-    show_progress : bool, optional
-        Display progress as an updating percentage iff True.
 
     Returns
     -------
@@ -67,11 +67,11 @@ def absorption_sinogram(p, anglelist, el=None, show_progress=False):
 
     """
     sinogram = np.empty((p.cols, len(anglelist)))
+    if config.show_progress:
+        pbar = ProgressBar(maxval=len(anglelist)-1).start()
     for i, angle in enumerate(anglelist):
-        if show_progress:
-            # sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
-            # sys.stdout.flush()
-            logging.info("\r{:.0%}".format(float(i) / len(anglelist)))
+        if config.show_progress:
+            pbar.update(i)
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
         n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
@@ -148,9 +148,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     return mu * t / np.cos(phi_y)
 
 
-def project_sinogram(event_type, p, q, anglelist, el=None,
-                     show_progress=False, no_in_absorption=False,
-                     no_out_absorption=False):
+def project_sinogram(event_type, p, q, anglelist, el=None):
     """Generates the sinogram of the requested element accounting for
     absorption by the matrix defined by the matrix_map, and the geometry.
     Physical units used:
@@ -172,12 +170,6 @@ def project_sinogram(event_type, p, q, anglelist, el=None,
     el : string, optional
         Name of element (e.g. 'Fe') used if projecting that element's
         fluorescence.
-    show_progress : bool, optional
-        Display progress as an updating percentage iff True.
-    no_in_absorption : bool, optional
-        If True, incident absorption is disabled. (default False).
-    no_out_absorption : bool, optional
-        If True, outgoing absorption is disabled. (default False).
 
     Returns
     -------
@@ -188,27 +180,25 @@ def project_sinogram(event_type, p, q, anglelist, el=None,
     assert event_type in ['rayleigh', 'compton', 'fluoro']
 
     sinogram = np.empty((p.cols, len(anglelist)))
+    if config.show_progress:
+        pbar = ProgressBar(maxval=len(anglelist)-1).start()
     for i, angle in enumerate(anglelist):
-        if show_progress:
-            # sys.stdout.write("\r{:.0%}".format(float(i) / len(anglelist)))
-            # sys.stdout.flush()
-            logging.info("\r{:.0%}".format(float(i) / len(anglelist)))
+        if config.show_progress:
+            pbar.update(i)
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
-        n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix,
-                               no_in_absorption=no_in_absorption)
+        n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
         e_map = channel_fluoro_map(p, q, n_map, angle, el)
         energy = outgoing_photon_energy(event_type, p, q, el)
         c = outgoing_cmam(p, q, angle, energy, increasing_ix=increasing_ix)
-        if no_out_absorption:
+        if config.no_out_absorption:
             sinogram[:, i] = e_map.sum(axis=0)
         else:
             sinogram[:, i] = (e_map * np.exp(-c)).sum(axis=0)
     return sinogram
 
 
-def irradiance_map(p, angle, n0=1.0, increasing_ix=True,
-                   no_in_absorption=False):
+def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
     """Generates the image-sized map of irradiance [1/(cm2 s)] at each 2d pixel
     for a given angle accounting for absorption at the incident energy by the
     full elemental distribution.
@@ -229,8 +219,6 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True,
         this direction is unimportant, but for the Radon transform with
         attenuation, we should project in the beam propagation direction.
         (default True).
-    no_in_absorption : bool, optional
-        If True, incident absorption is disabled. (default False).
 
     Returns
     -------
@@ -259,7 +247,7 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True,
         cmam = t * np.cumsum(im, axis=0)
     else:
         cmam = t * np.cumsum(im[::-1], axis=0)[::-1]
-    if no_in_absorption:
+    if config.no_in_absorption:
         n_map = n0
     else:
         n_map = n0 * exp(-cmam)
@@ -727,8 +715,7 @@ def write_sinogram(im, p, event_type, el='matrix'):
     write_tiff32(s_filename, im)
 
 
-def project(p, event_type, anglesfile, no_in_absorption=False,
-            no_out_absorption=False):
+def project(p, event_type):
     """This is the entry point for the sinogram project script.
     Performs the projection at all specified angles and writes the resulting
     sinograms out as tiffs.
@@ -738,25 +725,16 @@ def project(p, event_type, anglesfile, no_in_absorption=False,
     p : Phantom2d object
     event_type : string
         One of 'afrc'.
-    anglesfile : string
-        Path to a textfile containing ordered list of projection
-        angles in degrees.
-    no_in_absorption : bool, optional
-        If True, incident absorption is disabled. (default False).
-    no_out_absorption : bool, optional
-        If True, outgoing absorption is disabled. (default False).
 
     """
-    logging.basicConfig(level=logging.WARNING, format="%(msg)s")
-    if options.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+    # globals().update(args)  # expose args_namespace
 
     assert event_type in 'afrc'
     event_type = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
                   'c': 'compton'}[event_type]
 
-    anglelist = np.loadtxt(anglesfile)
-    q = int(maia_d.channel(7, 7).index)        # TODO: remove hard-coded channel
+    anglelist = np.loadtxt(config.anglesfile)
+    q = int(maia_d.channel(7, 7).index[0])  # TODO: remove hard-coded channel
     if event_type == 'absorption':
         im = absorption_sinogram(p, anglelist)
         write_sinogram(im, p, event_type)
@@ -765,16 +743,12 @@ def project(p, event_type, anglesfile, no_in_absorption=False,
         for el in p.el_maps:
             if el == 'matrix':
                 continue
-            im = project_sinogram(event_type, p, q, anglelist, el,
-                                  no_in_absorption=no_in_absorption,
-                                  no_out_absorption=no_out_absorption)
+            im = project_sinogram(event_type, p, q, anglelist, el)
             write_sinogram(im, p, event_type, el)
     else:
         # event_type is 'rayleigh' or 'compton'
         # Absorption, Rayleigh or Compton scattering sinogram of matrix
-        im = project_sinogram(event_type, p, q, anglelist,
-                              no_in_absorption=no_in_absorption,
-                              no_out_absorption=no_out_absorption)
+        im = project_sinogram(event_type, p, q, anglelist)
         write_sinogram(im, p, event_type)
 
 
@@ -782,14 +756,11 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import phantom
 
-    no_in_absorption=False
-    no_out_absorption=False
+    config.parse()  # read config file settings
 
     BASE = r'R:\Science\XFM\GaryRuben\projects\TMM'
     DATA_DIR = os.path.join(BASE, r'work\20141016')
     os.chdir(DATA_DIR)
-
-    anglesfile = os.path.join(BASE, r'work\20141016\angles.txt')
 
     el = 'Cu'
 
@@ -798,14 +769,11 @@ if __name__ == '__main__':
                           um_per_px=12.52,
                           energy=9)
 
-    anglelist = np.loadtxt(anglesfile, dtype=int)
+    anglelist = np.loadtxt(config.anglesfile, dtype=int)
     # sinogram = absorption_sinogram(p, anglelist, el, show_progress=True)
     # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
     q = int(maia_d.channel(7, 7).index[0])
-    sinogram = project_sinogram('fluoro', p, q, anglelist, el,
-                                show_progress=True,
-                                no_in_absorption=no_in_absorption,
-                                no_out_absorption=no_out_absorption)
+    sinogram = project_sinogram('fluoro', p, q, anglelist, el)
 
     # np.save('sino'+el, sinogram)
     imshow(sinogram, extent=[0, 360, 0, 99], aspect=2, cmap='cubehelix')
@@ -813,8 +781,8 @@ if __name__ == '__main__':
     plt.ylabel('x')
     plt.show()
 
+
     for event_type in 'arcf':
         event_name = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
                       'c': 'compton'}[event_type]
-        print('\n' + event_name)
-        project(p, event_type, anglesfile)
+        project(p, event_type)
