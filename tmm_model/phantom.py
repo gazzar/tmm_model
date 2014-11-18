@@ -266,7 +266,7 @@ class Phantom2d(object):
             assert('-' in f)
             basename, _ = os.path.splitext(f)
             el = basename.split('-')[-1]
-            logging.info('reading tiff: ', f)
+            logging.info('reading tiff: ' + f)
             im = read_tiff32(f)
             self.rows, self.cols = im.shape
 
