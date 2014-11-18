@@ -1,0 +1,7 @@
+verbose: True
+show_progress: False
+
+no_in_absorption: False
+no_out_absorption: False
+
+anglesfile: 'angles.txt'
