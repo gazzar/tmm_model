@@ -13,11 +13,12 @@ import numpy as np
 
 
 GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'data', 'golosio_100.png')
+YAMLFILE = os.path.join(PATH_HERE, '..', 'data', 'golosio.yaml')
 
 
 class LoadMapTests(unittest.TestCase):
     def setUp(self):
-        self.phantom = Phantom2d(filename=GOLOSIO_MAP)
+        self.phantom = Phantom2d(filename=GOLOSIO_MAP, yamlfile=YAMLFILE)
 
     def test_simple_load(self):
         self.assertTrue(isinstance(self.phantom, Phantom2d))
@@ -25,20 +26,20 @@ class LoadMapTests(unittest.TestCase):
     def test_correct_load(self):
         self.assertEqual(self.phantom.rows, 100)
         self.assertEqual(self.phantom.cols, 100)
-        self.assertEqual(self.phantom.scale, 1.0)
+        self.assertEqual(self.phantom.um_per_px, 1.0)
         self.assertEqual(self.phantom.phantom_array.min(), 0)
         self.assertEqual(self.phantom.phantom_array.max(), 3)
 
 class DrawGolosioPhantomTest(unittest.TestCase):
     def test_make_golosio_phantom(self):
         PX_SIDE = 200
-        p = Phantom2d(size=(PX_SIDE,PX_SIDE), scale=1.0/PX_SIDE)
+        p = Phantom2d(size=(PX_SIDE,PX_SIDE), um_per_px=1.0/PX_SIDE)
         for thing in golosio_geometry:
             p.add_shape(thing)
 
 class CheckValuesTests(unittest.TestCase):
     def setUp(self):
-        self.phantom = Phantom2d(filename=GOLOSIO_MAP)
+        self.phantom = Phantom2d(filename=GOLOSIO_MAP, yamlfile=YAMLFILE)
 
     def test_golosio_compound_at_0_0(self):
         p_0_0 = self.phantom.compound_record(golosio_compounds, row=0, col=0)
@@ -56,7 +57,7 @@ class CheckValuesTests(unittest.TestCase):
 
 class RotationTests(unittest.TestCase):
     def setUp(self):
-        self.phantom = Phantom2d(filename=GOLOSIO_MAP)
+        self.phantom = Phantom2d(filename=GOLOSIO_MAP, yamlfile=YAMLFILE)
 
     def test_0deg(self):
         p = self.phantom.rotate(0)
