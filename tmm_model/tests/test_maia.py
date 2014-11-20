@@ -37,6 +37,51 @@ class CoordinateTests(unittest.TestCase):
         self.assertTrue(np.allclose(cr_map, md_map))
 
 
+class ChannelSelectionTests(unittest.TestCase):
+    def setUp(self):
+        self.det = Maia()
+
+    def test_quadrant_selection(self):
+        quadrant = list(self.det.channel_selection(quadrant=0))
+        self.assertTrue(len(quadrant)==384/4)
+
+    def test_quadrants_selection(self):
+        quadrant = list(self.det.channel_selection(quadrant=(0, 2)))
+        self.assertTrue(len(quadrant)==384/2)
+
+    def test_row0_selection(self):
+        row = list(self.det.channel_selection(row=0))
+        self.assertTrue(len(row)==20)
+
+    def test_row10_selection(self):
+        row = list(self.det.channel_selection(row=10))
+        self.assertTrue(len(row)==16)
+
+    def test_col0_selection(self):
+        col = list(self.det.channel_selection(col=0))
+        self.assertTrue(len(col)==20)
+
+    def test_col10_selection(self):
+        col = list(self.det.channel_selection(col=10))
+        self.assertTrue(len(col)==16)
+
+    def test_row0col0_selection(self):
+        ch = list(self.det.channel_selection(row=0, col=0))
+        self.assertTrue(len(ch)==1)
+
+    def test_rowscols_selection(self):
+        ch = list(self.det.channel_selection(row=(0, 2), col=(0, 1)))
+        self.assertTrue(len(ch)==4)
+
+    def test_rowscols_selection2(self):
+        ch = list(self.det.channel_selection(row=(0, 8), col=(0, 8)))
+        self.assertTrue(len(ch)==3)
+
+    def test_rowscols_range(self):
+        ch = list(self.det.channel_selection(row=range(9), col=range(9)))
+        self.assertTrue(len(ch)==80)        # 9x9-1=80
+
+
 class SolidAngleTests(unittest.TestCase):
     def setUp(self):
         self.det = Maia()

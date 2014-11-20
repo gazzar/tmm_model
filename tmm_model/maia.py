@@ -119,8 +119,8 @@ class Maia(object):
 
         """
         map2d = np.zeros((self.rows, self.cols)) + fill_value
-        map2d[self.maia_data['Row'],
-              self.maia_data['Column']] = func()
+        map2d[self.maia_data.Row,
+              self.maia_data.Column] = func()
         return map2d
 
 
@@ -128,8 +128,8 @@ class Maia(object):
         """Return Dataframe for detector element at row, col index
 
         """
-        return self.maia_data[(self.maia_data['Row']==row) &
-                              (self.maia_data['Column']==col)]
+        return self.maia_data[(self.maia_data.Row==row) &
+                              (self.maia_data.Column==col)]
 
 
     def area(self, row, col):
@@ -186,43 +186,34 @@ class Maia(object):
     def channel_selection(self, quadrant=None, row=None, col=None):
         """A generator for the Maia channel IDs (which are also the
         Pandas dataframe IDs) of all Maia channels in the specified
-        group, where the group is either a quadrant, row or column. Currently
-        this generator just allows one of the arguments to be specified.
+        group, where the group is specified by quadrant, row or
+        column values or ranges.
 
         Parameters
         ----------
         quadrant : int, default None
-            one of [0, 1, 2, 3].
+            one or more from the set (0-3). e.g. [0, 2].
         row : int, default None
-            The Maia channel row; one of 0-19.
+            The Maia channel row or rows (0-19), e.g. 1, 10, (1, 9), [1, 3, 5]
+                                                range(5,9).
         col : int, default None
-            The Maia channel column; one of 0-19.
+            The Maia channel column (0-19). See row examples.
 
         Yields
         ------
         All channel IDs in the group.
 
         """
-        # Verify that exactly one of the arguments is specified.
-        not_none_count = (0 if quadrant is None else 1) + \
-                         (0 if row is None else 1) + \
-                         (0 if col is None else 1)
-        assert not_none_count == 1
-
+        df = self.maia_data
         if quadrant is not None:
-            q = self.maia_data.Quadrant
-            for channel in q[q==quadrant].index.values:
-                yield channel
-
+            df = df[np.in1d(df.Quadrant, quadrant)]
         if row is not None:
-            r = self.maia_data.Row
-            for channel in r[r==row].index.values:
-                yield channel
-
+            df = df[np.in1d(df.Row, row)]
         if col is not None:
-            c = self.maia_data.Column
-            for channel in c[c==col].index.values:
-                yield channel
+            df = df[np.in1d(df.Column, col)]
+
+        for channel in df.index.values:
+            yield channel
 
 
     def maia_data_column_from_id(self, channel_id, column_name):
