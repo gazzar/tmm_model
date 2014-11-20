@@ -488,11 +488,12 @@ def outgoing_photon_energy(event_type, p, q=None, el=None):
         #assert energy < p.energy
         return energy
 
-    energy = {
-        'rayleigh': p.energy,
-        'compton': compton_scattered_energy(p.energy, q),
-        'fluoro': k_alpha_energy(el),
-    }[event_type]
+    if event_type == 'rayleigh':
+        energy = p.energy
+    elif event_type == 'compton':
+        energy = compton_scattered_energy(p.energy, q)
+    else:           # 'fluoro'
+        energy = k_alpha_energy(el)
 
     return energy
 
