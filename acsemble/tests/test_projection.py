@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
 import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 sys.path = [os.path.join(PATH_HERE, '..')] + sys.path

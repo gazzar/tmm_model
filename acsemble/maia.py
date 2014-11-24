@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
 import sys, os
 import numpy as np
 import pandas as pd

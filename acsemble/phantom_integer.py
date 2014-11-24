@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
-
 """Phantom class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
 geometry and composition data, with class methods supplied to instanciate it.

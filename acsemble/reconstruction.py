@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
-
 """Reconstruction code
 """
 
@@ -78,7 +71,7 @@ if __name__ == '__main__':
 
     BASE = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model'
 
-    os.chdir(os.path.join(BASE, r'tmm_model\data'))
+    os.chdir(os.path.join(BASE, r'acsemble\data'))
 
     p = phantom.Phantom2d(filename='s_golosio*.tiff')
 

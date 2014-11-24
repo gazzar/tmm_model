@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
 """The main forward model
 A simple forward model of interaction with a phantom
 that accounts for self-absorption of entering and exiting rays and produces

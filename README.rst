@@ -1,15 +1,17 @@
-tmm_model
+acsemble
 =========================================================
 
 Author: Gary Ruben
 
-Python code of a forward model for the tomographic metals mapping project.
+Absorption corrected reconstruction for X-ray Fluorescence Tomography.
+Currently this implements a forward model for tomography at the Australian
+Synchrotron XFM beamline.
 
 Dependencies
 ------------
-`tmm_model`_ is written in Python 2.7 and depends on numpy, scipy, pandas,
-matplotlib, scikit-image,
-xraylib http://github.com/tschoonj/xraylib/wiki
+`acsemble`_ is written in Python 2.7 and depends on numpy, scipy, pandas,
+matplotlib, scikit-image, xraylib [1], as well as pure-Python
+modules that are pip-installable from PyPI.
 
 Installation
 ------------
@@ -23,7 +25,9 @@ is Copyright (c) 2008-2014, Christoph Gohlke
 It was obtained from http://www.lfd.uci.edu/~gohlke/ in January 2014
 
 Notes:
-This code uses xraylib
+This code uses xraylib [1]
+[1] T. Schoonjans et al., Spectrochim. Acta B 66, 776 (2011),
+    http://github.com/tschoonj/xraylib/wiki
 
 Version History
 ---------------

@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2014, Gary Ruben
-# Released under the Modified BSD license
-# See LICENSE
-
-
 """Projection class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
 geometry and composition data, with class methods supplied to instantiate it.
@@ -41,7 +34,7 @@ rad_to_deg = lambda x: x * 180 / pi
 maia_d = Maia()  # Maia detector object singleton
 
 
-def absorption_sinogram(p, anglelist, el=None):
+def absorption_sinogram(p, anglelist):
     """Generates the sinogram of the requested element accounting for
     absorption by the matrix defined by the matrix_map, and the geometry.
     Physical units used:
@@ -56,9 +49,6 @@ def absorption_sinogram(p, anglelist, el=None):
         p.um_per_px - length of one pixel of the map (um).
     anglelist : list of float
         Ordered list of sinogram projection angles in degrees.
-    el : string, optional
-        Name of element (e.g. 'Fe') used if projecting that element's
-        fluorescence.
 
     Returns
     -------
