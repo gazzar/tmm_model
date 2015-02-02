@@ -6,6 +6,8 @@ import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
 import warnings
+import logging
+import glob, fnmatch, re
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import tifffile
@@ -21,6 +23,7 @@ def write_tiff32(filename, im):
         imsave(filename, im, plugin='freeimage')
     except (ValueError, RuntimeError):
         tifffile.imsave(filename, im, compress=1)
+    logging.info('save tiff: ' + filename)
 
 
 def read_tiff32(filename):
@@ -29,10 +32,12 @@ def read_tiff32(filename):
     written by tifffile.imsave *but* PIL is fussier than tifffile and wouldn't
     read 32-bit tiffs written from ImageJ.
     
-    Arguments:
+    Parameters
+    ----------
     filename - full filename path string
     
-    Returns:
+    Returns
+    -------
     float32 image ndarray
 
     """
@@ -42,12 +47,16 @@ def read_tiff32(filename):
     except (ValueError, RuntimeError):
         im = tifffile.imread(filename)
     im = im.astype(np.float32)
+    logging.info('load tiff: ' + filename)
     return im
 
 
 def zero_outside_circle(im):
     """Return a copy of a square image with zeroed values outside an imaginary
     inscribed circle that touches all four sides.
+
+    Returns
+    -------
 
     """
     im = im.copy()
@@ -64,7 +73,8 @@ def zero_outside_mask(im, mask):
     """Zero the entries in im (i.e. not in a copy of im) that lie in the outer
     part of the mask image (based on the value of mask[0,0])
     
-    Arguments:
+    Parameters
+    ----------
     im - 2d ndarray
     mask - 2d ndarray
 
@@ -90,12 +100,63 @@ def rotate(im, angle):
     """Use the skimage rotate function to rotate an image
     scale into (-1,1) range for rotate op then rescale.
     
-    Arguments:
+    Parameters
+    ----------
     im - float array
     angle - rotation angle in degrees
+
+    Returns
+    -------
 
     """
     assert issubclass(im.dtype.type, np.floating)
 
     scale = im.max()
     return st.rotate(im/scale, angle) * scale
+
+
+#     matches = [f for f in s if reobj.search(f).group(1)==el]
+
+
+def match_pattern(pattern, s):
+    """Does a glob pattern match against a list of strings. Only the *
+    character is currently supported here (no ? or []). Returns a list of
+    tuples of (matching_string, matching_glob_component). For example
+    >>> match_pattern('a*z', ['abc', 'abcz', 'az'])
+    returns
+    [('abcz', 'bc'), ('az', '')]
+
+    >>> match_pattern('a*z', ['abc'])
+    returns
+    [('abz', 'b')]
+
+    Parameters
+    ----------
+    pattern - string
+        A string that defines a match pattern and may use the unix glob *
+        character to define a wildcard section
+    s - string
+        The comparison string to match against the pattern
+
+    Returns
+    -------
+    list of tuples of (matching_string, matching_glob_component)
+
+    """
+    # Create a regex that will capture the glob pattern part
+    regex = fnmatch.translate(pattern).replace('.*', '(.*)')
+    reobj = re.compile(regex)
+
+    if '*' in pattern:
+        matches = []
+        for f in s:
+            match = reobj.search(f)
+            if match is not None:
+                matches.append((f, match.group(1)))
+    elif pattern in s:
+        matches = [(pattern, '')]
+    else:
+        matches = []
+
+    return matches
+
