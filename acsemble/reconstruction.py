@@ -47,10 +47,15 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     pattern = p.filename
 
     matches = helpers.match_pattern(pattern, glob.glob(pattern))
+
+    print "don't play with:", matches
+
     if matches:
         match_base = [m[0] for m in matches if el in m[1]][0]
     else:
         raise Exception('Element {} not found in {}'.format(el, matches))
+    print 'first:',match_base
+
     path = os.path.dirname(pattern)
     base = os.path.basename(match_base)
     filename = os.path.join(path, 'r_'+base)
@@ -77,6 +82,8 @@ if __name__ == '__main__':
     os.chdir(os.path.join(BASE, r'acsemble\data'))
 
     p = phantom.Phantom2d(filename='s_golosio*.tiff')
+
+    print p
 
     anglesfile = os.path.join(BASE, r'acsemble\data\angles.txt')
     reconstruct(p, 'f', anglesfile)

@@ -20,6 +20,7 @@ from helpers import write_tiff32, read_tiff32
 from data_helpers import MatrixProperties
 import yaml
 import glob
+import textwrap
 
 # suppress spurious skimage warning
 import warnings
@@ -118,6 +119,33 @@ class Phantom2d(object):
             self.rows, self.cols = size
             assert type(self.rows) is int and type(self.cols) is int
             self.phantom_array = np.zeros(size, dtype=int)
+
+
+    def __str__(self):
+        rp_filename = 'None' if (self.filename is None) else self.filename
+        rp_yamlfile = self.yamlfile if self.yamlfile else "''"
+        rp_elements = self.matrix_elements if self.matrix_elements else "''"
+        repstr = '''
+            Phantom2d
+                id: {id}
+                filename: {filename}
+                el_maps (keys): {el_maps}
+                matrix_elements: {matrix_elements}
+                yamlfile: {yamlfile}
+                energy: {energy}
+                um_per_px: {um_per_px}
+                rows, cols: ({rows}, {cols})
+                '''.format(
+                    id = id(self),
+                    el_maps = self.el_maps.keys(),
+                    filename = rp_filename,
+                    yamlfile = rp_yamlfile,
+                    matrix_elements = rp_elements,
+                    energy = self.energy,
+                    um_per_px = self.um_per_px,
+                    rows = self.rows, cols = self.cols,
+                )
+        return textwrap.dedent(repstr)
 
 
     def coordinate_scale(self, val):
