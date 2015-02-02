@@ -4,8 +4,9 @@
 import os
 import numpy as np
 from skimage.transform import iradon, iradon_sart, rotate
+import helpers
 from helpers import write_tiff32
-import glob, fnmatch
+import glob, re, fnmatch
 
 
 UM_PER_CM = 1e4
@@ -44,12 +45,14 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     # Get the filename that matches the glob pattern for this element
     # and prepend r_ to it
     pattern = p.filename
-    filenames = ['{}-{}{}'.format(
-                   '-'.join(f.split('-')[:-1]), el, os.path.splitext(f)[1])
-                 for f in glob.glob(pattern)]
-    print filenames
-    path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
-    print base
+
+    matches = helpers.match_pattern(pattern, glob.glob(pattern))
+    if matches:
+        match_base = [m[0] for m in matches if el in m[1]][0]
+    else:
+        raise Exception('Element {} not found in {}'.format(el, matches))
+    path = os.path.dirname(pattern)
+    base = os.path.basename(match_base)
     filename = os.path.join(path, 'r_'+base)
 
     write_tiff32(filename, im)
@@ -75,6 +78,6 @@ if __name__ == '__main__':
 
     p = phantom.Phantom2d(filename='s_golosio*.tiff')
 
-    anglesfile = os.path.join(BASE, r'commands\angles.txt')
+    anglesfile = os.path.join(BASE, r'acsemble\data\angles.txt')
     reconstruct(p, 'f', anglesfile)
 #    reconstruct(p, 's', anglesfile)
