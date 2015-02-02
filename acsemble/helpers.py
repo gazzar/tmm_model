@@ -115,9 +115,6 @@ def rotate(im, angle):
     return st.rotate(im/scale, angle) * scale
 
 
-#     matches = [f for f in s if reobj.search(f).group(1)==el]
-
-
 def match_pattern(pattern, s):
     """Does a glob pattern match against a list of strings. Only the *
     character is currently supported here (no ? or []). Returns a list of
