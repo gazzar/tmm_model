@@ -64,7 +64,7 @@ class RotationTests(unittest.TestCase):
     def test_90deg(self):
         p = self.phantom.rotate(90)
         self.assertTrue(np.allclose(p, np.rot90(self.phantom.phantom_array)))
-        
+
 if __name__ == '__main__':
     import nose
     nose.main()

@@ -15,6 +15,8 @@ import projection
 import config
 
 
+print __file__
+
 config.parse()
 
 p = phantom.Phantom2d(
@@ -25,3 +27,5 @@ p = phantom.Phantom2d(
 )
 
 projection.project(p, config.event_type)
+
+print '\\' + __file__

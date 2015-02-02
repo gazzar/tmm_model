@@ -17,6 +17,8 @@ import reconstruction
 import version
 
 
+print __file__
+
 description = textwrap.dedent("""\
     {filename} -
     A commandline tool to reconstruct/backproject from a sinogram.
@@ -56,3 +58,5 @@ n = args['n']
 
 p = phantom.Phantom2d(filename=filepattern, um_per_px=scale)
 reconstruction.reconstruct(p, method, anglelist)
+
+print '\\' + __file__
