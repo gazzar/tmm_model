@@ -23,6 +23,7 @@ import xraylib as xrl
 from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
 from data_helpers import MatrixProperties
 from maia import Maia
+import helpers
 from progressbar import ProgressBar
 
 
@@ -692,14 +693,18 @@ def write_sinogram(im, p, event_type, el='matrix'):
     # Get the filename that matches the glob pattern for this element
     # and prepend s_ to it
     pattern = p.filename
-    filenames = ['{base}-{el}{ext}'.format(base='-'.join(f.split('-')[:-1]),
-                                           el=el,
-                                           ext=os.path.splitext(f)[1])
-                 for f in glob.glob(pattern)]
-    path, base = os.path.split(fnmatch.filter(filenames, pattern)[0])
+
+    matches = helpers.match_pattern(pattern, glob.glob(pattern))
+    if matches:
+        match_base = [m[0] for m in matches if el in m[1]][0]
+    else:
+        raise Exception('Element {} not found in {}'.format(el, matches))
+    path = os.path.dirname(pattern)
+    base = os.path.basename(match_base)
+    s_filename = os.path.join(path, 's_'+base)
 
     # Write sinogram (absorption map)
-    s_filename = os.path.join(path, 's_{base}'.format(base=base))
+
     # append r, c, f, a to -matrix suffix so sinograms read in as unique images
     if '-matrix' in s_filename:
         s_filename = s_filename.replace('-matrix', '-matrix-' + event_type[0])
