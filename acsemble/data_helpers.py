@@ -1,10 +1,5 @@
-import pandas as pd
-import numpy as np
-from scipy import interpolate
+from __future__ import print_function
 import xraylib as xrl
-from collections import namedtuple
-import os
-import glob
 
 '''
 # Gain access to acsemble when running locally or as an imported module

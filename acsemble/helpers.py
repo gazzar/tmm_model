@@ -151,7 +151,7 @@ def match_pattern(pattern, s):
             if match is not None:
                 matches.append((f, match.group(1)))
     elif pattern in s:
-        matches = [(pattern, '')]
+        matches = [(pattern, pattern)]
     else:
         matches = []
 
