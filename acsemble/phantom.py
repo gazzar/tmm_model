@@ -16,6 +16,7 @@ from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
 from collections import Iterable
+import helpers
 from helpers import write_tiff32, read_tiff32
 from data_helpers import MatrixProperties
 import yaml
@@ -74,7 +75,8 @@ class Phantom2d(object):
     """
     def __init__(self, size=None, um_per_px=1.0, energy=15, filename=None,
                  yamlfile='', matrix_elements=''):
-        """
+        """Constructor
+
         Parameters
         ----------
         size : (rows,cols) in px
@@ -110,18 +112,30 @@ class Phantom2d(object):
                 filename = os.path.join(basedir, basename_noext+'*.tiff')
             else:
                 self.phantom_array = np.zeros(size, dtype=int)
-            # TODO: Remove this huge kludge:
-            if basename_noext[1] != '_':
+
+            # If a yamlfile is specified (composition table is defined), assume
+            # that we are doing a forward projection for which we need density
+            # and composition information.
+            if yamlfile:
                 self.matrix = MatrixProperties(self)
             # read tiffs
             self._read_tiffs(filename)
         else:
+            # No filename was specified; just create a minimal Phantom2d
+            # object to be populated by the instanciating code.
             self.rows, self.cols = size
             assert type(self.rows) is int and type(self.cols) is int
             self.phantom_array = np.zeros(size, dtype=int)
 
-
     def __str__(self):
+        """String representation of a Phantom2d object.
+
+        Returns
+        -------
+        str
+            The string representation.
+
+        """
         rp_filename = 'None' if (self.filename is None) else self.filename
         rp_yamlfile = self.yamlfile if self.yamlfile else "''"
         rp_elements = self.matrix_elements if self.matrix_elements else "''"
@@ -147,7 +161,6 @@ class Phantom2d(object):
                 )
         return textwrap.dedent(repstr)
 
-
     def coordinate_scale(self, val):
         """Rescale a coordinate value from "world" coords (0.0-1.0)
         to pixel coordinates.
@@ -169,7 +182,6 @@ class Phantom2d(object):
                 result = val / self.um_per_px
         return result
 
-
     def rotate(self, angle):
         """Rotate the phantom_array
 
@@ -186,7 +198,6 @@ class Phantom2d(object):
             # order=0 forces nearest-neighbour interpolation.
             ub = img_as_ubyte(rotate(self.phantom_array, angle, order=0))
         return ub
-
 
     def add_shape(self, thing):
         """Add a 'thing'; a square, circular or diamond-shaped patch of some
@@ -219,14 +230,13 @@ class Phantom2d(object):
             intrad = int(radius)
             diamond = np.tri(intrad*2, intrad*2, intrad, dtype=int)
             diamond[intrad:] = diamond[:intrad][::-1]
-            diamond[:,:intrad] = diamond[:,intrad:][:,::-1]
+            diamond[:, :intrad] = diamond[:, intrad:][:, ::-1]
 
             diamond_mask = np.zeros_like(self.phantom_array, dtype=bool)
             diamond_mask[tlrow+2:tlrow+intrad*2+2,
                          tlcol+1:tlcol+intrad*2+1] = diamond
 
             self.phantom_array[diamond_mask] = compound
-
 
     def _read_map(self, filename):
         """Read an image map (a greyscale png) whose pixel values
@@ -247,7 +257,7 @@ class Phantom2d(object):
 
         """
         try:
-            im = imread(filename)[:,:,0]
+            im = imread(filename)[:, :, 0]
         except IOError:
             print('Could not open' + filename)
             raise
@@ -255,7 +265,6 @@ class Phantom2d(object):
         self.rows, self.cols = im.shape
         self.um_per_px = 1.0
         return im
-
 
     @staticmethod
     def _read_composition(yamlfile):
@@ -273,7 +282,6 @@ class Phantom2d(object):
             comp = yaml.load(f)
         return comp
 
-
     def _read_tiffs(self, pattern):
         """Read all tiff files matching the glob pattern
         
@@ -281,17 +289,12 @@ class Phantom2d(object):
         pattern - a glob pattern for tiff files, e.g. '*.tiff'
 
         """
-        _, basename = os.path.split(pattern)
-        filenames = glob.glob(pattern)
-        for f in filenames:
-            assert('-' in f)
-            basename, _ = os.path.splitext(f)
-            el = basename.split('-')[-1]
+        filenames = helpers.match_pattern(pattern, glob.glob(pattern))
+
+        for f, el in filenames:
             im = read_tiff32(f)
             self.rows, self.cols = im.shape
-
             self.el_maps[el] = im
-
 
     def split_map(self, dirname):
         """Split the single greyscale lookup map + composition dictionary into
@@ -346,7 +349,6 @@ class Phantom2d(object):
             outfile = os.path.join(dirname, '{}-{}.tiff'.format(filename, el))
             write_tiff32(outfile, maps[el])
 
-
     def compound_record(self, compounds, row, col):
         """Return the compound record for the specified row and col.
 
@@ -363,7 +365,6 @@ class Phantom2d(object):
         ix = self.phantom_array[row, col]
         return compounds[ix]
 
-
     def density(self, compounds, row, col):
         """Return the density at the specified row and col.
 
@@ -377,7 +378,6 @@ class Phantom2d(object):
 
         """
         return self.compound_record(compounds, row, col)[0]
-
 
     def show(self, show=False):
         """Display the map using matplotlib.

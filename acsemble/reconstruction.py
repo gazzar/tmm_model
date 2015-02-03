@@ -15,7 +15,8 @@ UM_PER_CM = 1e4
 def reconstruct_and_write(p, el, algorithm, anglelist=None):
     """Reconstruct from a sinogram
 
-    Arguments:
+    Parameters:
+    -----------
     el - name of current element, e.g. 'Fe'
     algorithm - one of f, s
         f - for conventional filtered backprojection with ramp filter
@@ -47,14 +48,10 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
     pattern = p.filename
 
     matches = helpers.match_pattern(pattern, glob.glob(pattern))
-
-    print "don't play with:", matches
-
     if matches:
-        match_base = [m[0] for m in matches if el in m[1]][0]
+        match_base = [m[0] for m in matches if el==m[1]][0]
     else:
         raise Exception('Element {} not found in {}'.format(el, matches))
-    print 'first:',match_base
 
     path = os.path.dirname(pattern)
     base = os.path.basename(match_base)

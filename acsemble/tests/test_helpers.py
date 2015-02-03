@@ -19,7 +19,7 @@ class MatchPatternTests(unittest.TestCase):
 
     def test_match_nopattern(self):
         matches = helpers.match_pattern('abc', ['abc', 'abcz', 'az'])
-        self.assertSequenceEqual(matches, [('abc', '')])
+        self.assertSequenceEqual(matches, [('abc', 'abc')])
 
     def test_no_match(self):
         matches = helpers.match_pattern('a*z', ['abc'])
