@@ -59,6 +59,8 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
 
     write_tiff32(filename, im)
 
+    return im
+
 
 def reconstruct(p, algorithm, anglesfile=None):
     """

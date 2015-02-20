@@ -711,6 +711,8 @@ def write_sinogram(im, p, event_type, el='matrix'):
         s_filename = s_filename.replace('-matrix', '-matrix-' + event_type[0])
     write_tiff32(s_filename, im)
 
+    return im
+
 
 def project(p, event_type):
     """This is the entry point for the sinogram project script.
@@ -734,19 +736,21 @@ def project(p, event_type):
     q = int(maia_d.channel(7, 7).index[0])  # TODO: remove hard-coded channel
     if event_type == 'absorption':
         im = absorption_sinogram(p, anglelist)
-        write_sinogram(im, p, event_type)
+        s = write_sinogram(im, p, event_type)
     elif event_type == 'fluoro':
         # fluorescence sinogram
         for el in p.el_maps:
             if el == 'matrix':
                 continue
             im = project_sinogram(event_type, p, q, anglelist, el)
-            write_sinogram(im, p, event_type, el)
+            s = write_sinogram(im, p, event_type, el)
     else:
         # event_type is 'rayleigh' or 'compton'
         # Absorption, Rayleigh or Compton scattering sinogram of matrix
         im = project_sinogram(event_type, p, q, anglelist)
-        write_sinogram(im, p, event_type)
+        s = write_sinogram(im, p, event_type)
+
+    return s
 
 
 if __name__ == '__main__':
