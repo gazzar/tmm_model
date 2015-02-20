@@ -65,6 +65,16 @@ class RotationTests(unittest.TestCase):
         p = self.phantom.rotate(90)
         self.assertTrue(np.allclose(p, np.rot90(self.phantom.phantom_array)))
 
+class YamlFileSanityTests(unittest.TestCase):
+    def setUp(self):
+        self.phantom = Phantom2d(filename=GOLOSIO_MAP, yamlfile=YAMLFILE)
+
+    def verify_weights_sum_to_one(self):
+        for compound in self.phantom.compounds.values():
+            self.assertAlmostEqual(sum(compound[1].values()), 1.0)
+
+
+
 if __name__ == '__main__':
     import nose
     nose.main()
