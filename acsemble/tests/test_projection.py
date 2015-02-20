@@ -2,7 +2,7 @@ import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
 import unittest
-from phantom import Phantom2d, golosio_compounds, golosio_geometry
+from phantom import Phantom2d
 import projection
 import numpy as np
 
