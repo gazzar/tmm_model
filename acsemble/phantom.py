@@ -29,40 +29,6 @@ import warnings
 #-------------------------------------------------------------------------------
 # Phantoms
 #-------------------------------------------------------------------------------
-"""Phantom from Fig. 3 of Golosio et al. [1]
-
-[1] Golosio et al., Internal Elemental Microanalysis Combining
-X-Ray Fluorescence, Compton and Transmission Tomography, J. App. Phys. 94 (2003)
-
-"""
-# Composition
-golosio_compounds = {
-    # Compound: [Density (g cm^-3), [[Z1, Concentration1 (weight frac)],
-    #                                [Z2, Concentration2 (weight frac)], ... ]]
-    0: [1.2e-3, [['N', 0.78], [ 'O', 0.21], ['Ar', 0.01]]], # air
-    1: [2.0,    [['C', 0.3 ], [ 'O', 0.6 ], ['Si', 0.1 ]]],
-    2: [3.5,    [['O', 0.3 ], ['Si', 0.1 ], ['Ca', 0.4 ], ['Fe', 0.2]]],
-    3: [3.5,    [['O', 0.3 ], ['Si', 0.1 ], ['Ca', 0.3 ], ['Fe', 0.3]]],
-}
-
-# Geometry
-golosio_geometry = [
-    # [shape, compound, topleft, bottomright]
-    ['square',  0, (0.0, 0.0), (1.0, 1.0)],         # air
-    ['square',  1, (0.2, 0.2), (0.8, 0.8)],         # substrate
-
-    ['square',  2, (0.26, 0.26), (0.44, 0.44)],     # upper left
-
-    ['circle',  2, (0.26, 0.56), (0.44, 0.74)],     # upper right
-
-    ['circle',  2, (0.56, 0.26), (0.74, 0.44)],     # lower left
-    ['diamond', 1, (0.58, 0.28), (0.72, 0.42)],
-
-    ['square',  2, (0.56, 0.56), (0.74, 0.74)],     # lower right
-    ['circle',  3, (0.59, 0.59), (0.71, 0.71)],
-]
-#-------------------------------------------------------------------------------
-
 
 class Phantom2d(object):
     """
