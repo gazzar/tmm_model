@@ -36,18 +36,12 @@ maia_d = Maia()  # Maia detector object singleton
 
 
 def absorption_sinogram(p, anglelist):
-    """Generates the sinogram of the requested element accounting for
-    absorption by the matrix defined by the matrix_map, and the geometry.
-    Physical units used:
-        matrix_map (g/cm^3)
-        ma (cm^2/g)
-        px_side (um)
+    """Generates the absorption sinogram for absorption by the full
+    elemental content of the Phantom2d object.
 
     Parameters
     ----------
     p : Phantom2d object
-        p.energy - incident beam photon energy (keV).
-        p.um_per_px - length of one pixel of the map (um).
     anglelist : list of float
         Ordered list of sinogram projection angles in degrees.
 
@@ -55,6 +49,7 @@ def absorption_sinogram(p, anglelist):
     -------
     array of float
         Sinogram of requested scattering or fluorescence.
+        This is a 2d x-theta map of dimensionless values.
 
     """
     sinogram = np.empty((p.cols, len(anglelist)))
@@ -141,11 +136,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
 
 def project_sinogram(event_type, p, q, anglelist, el=None):
     """Generates the sinogram of the requested element accounting for
-    absorption by the matrix defined by the matrix_map, and the geometry.
-    Physical units used:
-        matrix_map (g/cm^3)
-        ma (cm^2/g)
-        px_side (um)
+    absorption by the Phantom2d composition and the geometry.
 
     Parameters
     ----------

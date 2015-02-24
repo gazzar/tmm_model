@@ -59,7 +59,17 @@ class Phantom2d(object):
 
         """
         assert size is not None or filename is not None
-        self.el_maps = {}       # container for elemental maps
+        # The el_maps field is a container for the elemental maps. One map is
+        # special; the 'matrix' map represents the density map of the
+        # matrix compound.
+        # The key:value pairs are
+        #     key: string containing element name, e.g. 'Zn'
+        #     value: density map array (g/cm3)
+        # Example:
+        #   {'matrix':<nxm ndarray>, 'Zn':<nxm ndarray>, 'Fe':<nxm ndarray>}
+        self.el_maps = {}       #
+        #
+                                # One of these has the key 'matrix'
         self.matrix_elements = matrix_elements
         self.filename = filename
         self.yamlfile = yamlfile
@@ -75,7 +85,7 @@ class Phantom2d(object):
                 self.phantom_array = self._read_map(filename)
                 self.compounds = self._read_composition(self.yamlfile)
                 self.split_map(basedir)
-                filename = os.path.join(basedir, basename_noext+'*.tiff')
+                filename = os.path.join(basedir, basename_noext+'-*.tiff')
             else:
                 self.phantom_array = np.zeros(size, dtype=int)
 
@@ -298,6 +308,7 @@ class Phantom2d(object):
             # Normalize weights so that they sum to 1
             sum_of_weights = sum(weights.values())
             weights = {k:v/sum_of_weights for k,v in weights.iteritems()}
+
             # Distribute elements to the individual maps or the matrix
             for el in weights:
                 if el in self.matrix_elements.split():
@@ -308,7 +319,7 @@ class Phantom2d(object):
                     m = maps[el]
                 compound_mask = (self.phantom_array & compound).astype(bool)
                 # apply density, so tiff-maps will have units of g/cm3
-                m[compound_mask] = density * weights[el]
+                m[compound_mask] += density * weights[el]
 
         # Write tiffs
         for el in maps:
