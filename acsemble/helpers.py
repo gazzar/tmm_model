@@ -19,6 +19,8 @@ def write_tiff32(filename, im):
     """
     # save a 32-bit tiff using either freeimage or tifffile
     im = im.astype(np.float32)
+    if np.any(np.isnan(im)):
+        logging.warning('warning: file {} contains NaNs'.format(filename))
     try:
         imsave(filename, im, plugin='freeimage')
     except (ValueError, RuntimeError):
