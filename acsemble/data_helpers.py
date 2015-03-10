@@ -12,8 +12,11 @@ class MatrixProperties(object):
     """
     def __init__(self, p):
         self.compounds = p._read_composition(p.yamlfile)
+        # Get the index of the only compound in the elemental-makeup dictionary.
+        # This will correspond to the matrix compound.
         self.compound_ix = [k for k, v in self.compounds.items()
                             if len(v[1]) > 1][0]
+        # Now, get the matrix compound density and elemental-makeup dictionary.
         self.density, self.cp = self.compounds[self.compound_ix]
 
     def ma(self, energy):

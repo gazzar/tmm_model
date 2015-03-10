@@ -98,7 +98,7 @@ class Phantom2d(object):
             self._read_tiffs(filename)
         else:
             # No filename was specified; just create a minimal Phantom2d
-            # object to be populated by the instanciating code.
+            # object to be populated by the instantiating code.
             self.rows, self.cols = size
             assert type(self.rows) is int and type(self.cols) is int
             self.phantom_array = np.zeros(size, dtype=int)
