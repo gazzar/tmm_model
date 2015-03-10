@@ -688,7 +688,7 @@ def write_sinogram(im, p, event_type, el='matrix'):
     matches = helpers.match_pattern(pattern, glob.glob(pattern))
     if matches:
         # Just get the filename that's a match for the element el
-        match_base = [m[0] for m in matches if el in m[1]][0]
+        match_base = [m[0] for m in matches if el==m[1]][0]
     else:
         raise Exception('Element {} not found in {}'.format(el, matches))
     path = os.path.dirname(pattern)
