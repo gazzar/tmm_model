@@ -27,18 +27,25 @@ description = textwrap.dedent("""\
 
 def open_first(filelist):
     for f in filelist:
-        if os.path.isfile(f):
-            return f
+        try:
+            if os.path.isfile(f):
+                return f
+        except TypeError:
+            continue
     return None
 
 
-def parse():
+def parse(path=None):
     dirs = AppDirs(version.__name__)
     configfile = 'config.yaml'
     config_filename = open_first([
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), configfile),
+        path,                                   # Explicit user-specified path
+        os.path.join(os.getcwd(), configfile),  # config.yaml in cwd
         os.path.join(dirs.user_config_dir, configfile),
-        os.path.join(__file__, configfile),
+                                                # config.yaml in user
+                                                # Local config dir
+        os.path.join(os.path.dirname(__file__), configfile),
+                                                # config.yaml in source dir
         ])
     try:
         parser = appsettings.SettingsParser(
