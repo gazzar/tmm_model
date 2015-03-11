@@ -163,7 +163,10 @@ def project_sinogram(event_type, p, q, anglelist, el=None):
 
     sinogram = np.empty((p.cols, len(anglelist)))
     if config.show_progress:
-        pbar = ProgressBar(maxval=len(anglelist)-1).start()
+        if len(anglelist) > 1:
+            pbar = ProgressBar(maxval=len(anglelist)-1).start()
+        else:
+            pbar = ProgressBar(maxval=1).start()
     for i, angle in enumerate(anglelist):
         if config.show_progress:
             pbar.update(i)
@@ -230,7 +233,7 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
     else:
         cmam = t * np.cumsum(im[::-1], axis=0)[::-1]
     if config.no_in_absorption:
-        n_map = n0
+        n_map = n0 + np.zeros_like(cmam)
     else:
         n_map = n0 * exp(-cmam)
     return n_map
