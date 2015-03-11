@@ -44,7 +44,7 @@ def parse(path=None):
         os.path.join(dirs.user_config_dir, configfile),
                                                 # config.yaml in user
                                                 # Local config dir
-        os.path.join(os.path.dirname(__file__), configfile),
+        os.path.join(os.path.abspath(os.path.dirname(__file__)), configfile),
                                                 # config.yaml in source dir
         ])
     try:
