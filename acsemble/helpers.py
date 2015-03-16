@@ -113,8 +113,9 @@ def rotate(im, angle):
     """
     assert issubclass(im.dtype.type, np.floating)
 
-    scale = im.max()
+    scale = max(abs(im.min()), im.max())
     return st.rotate(im/scale, angle) * scale
+    # return st.rotate(im/scale, angle, order=3) * scale
 
 
 def match_pattern(pattern, s):
