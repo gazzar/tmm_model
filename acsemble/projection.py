@@ -108,11 +108,9 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     # projecting along the z-axis (along columns)
 
     # rotate by the sum of the projection angle and local detector angle
-    y = maia_d.maia_data_column_from_id(q, 'Row')
-    x = maia_d.maia_data_column_from_id(q, 'Column')
     # Get angle to rotate maps so that propagation toward detector plane
     # corresponds with direction to maia detector element
-    phi_y, phi_x = maia_d.yx_angles_radian(y, x)
+    phi_x = maia_d.maia_data_column_from_id(q, 'angle_X_rad')
     phix_deg = rad_to_deg(phi_x)
 
     # Apply local rotation, accumulation and rotation operators
@@ -131,6 +129,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     mu = rotate(mu, phix_deg)
     t = p.um_per_px / UM_PER_CM
 
+    phi_y = maia_d.maia_data_column_from_id(q, 'angle_Y_rad')
     return mu * t / np.cos(phi_y)
 
 
@@ -505,7 +504,8 @@ def fluoro_emission_map(p, n_map, angle, el):
         The fluorescence emission map for the requested edge.
 
     """
-    edge_map = zero_outside_circle(p.el_maps[el])
+    # edge_map = zero_outside_circle(p.el_maps[el])
+    edge_map = p.el_maps[el]
     edge_map_r = rotate(edge_map, -angle)
     del edge_map
 
@@ -645,7 +645,7 @@ def channel_rayleigh_map(p, q, n_map, angle):
 
     ma += xrl.DCSP_Rayl(Z, energy, theta, phi)
 
-    edge_map = zero_outside_circle(p.el_maps[el])
+    # edge_map = zero_outside_circle(p.el_maps[el])
     edge_map_r = rotate(edge_map, -angle)
     del edge_map
 

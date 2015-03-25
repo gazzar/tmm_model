@@ -6,3 +6,4 @@
 *.tiff
 ipynb/start_ipynb_server.bat
 *.ipynb
+*.png
