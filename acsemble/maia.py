@@ -33,7 +33,12 @@ class Maia(object):
         b_mm = self.maia_data['height']
         A_mm = abs(x) - a_mm/2
         B_mm = abs(y) - b_mm/2
-    
+
+        # Ensure that the pads don't cross the x or y axes because there are
+        # simplifying assumptions in the code that rely on this fact.
+        assert (A_mm >= 0.0).all()
+        assert (B_mm >= 0.0).all()
+
         self.maia_data['area_mm2'] = a_mm * b_mm
         self.maia_data['omega'] = self.v_getOmega(self, A_mm, B_mm,
                                                         a_mm, b_mm, d_mm)
