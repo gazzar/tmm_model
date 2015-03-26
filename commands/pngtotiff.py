@@ -33,18 +33,10 @@ parser.add_argument('filepattern', action='store',
                                          golosio_100-x.tiff'''))
 parser.add_argument('yamlfile', action='store',
                     help='yamlfile e.g. golosio.yaml')
-parser.add_argument('-m', '--matrix', action='store', default='',
-                    help=textwrap.dedent('define the matrix elements\
-                                          e.g. NOHC, SiN'))
 
 args = vars(parser.parse_args())
 
-# get the list of matrix elements as a space-delimited string
-matrix_elements = args['matrix']
-matrix_elements = re.sub(r'([a-z]*)([A-Z])',r'\1 \2', matrix_elements).strip()
-
 filename = args['filepattern']
 yamlfile = args['yamlfile']
-p = phantom.Phantom2d(filename=filename, yamlfile=yamlfile,
-                      matrix_elements=matrix_elements)
+p = phantom.Phantom2d(filename=filename, yamlfile=yamlfile)
 p.split_map(os.path.dirname(filename))

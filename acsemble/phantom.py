@@ -40,7 +40,7 @@ class Phantom2d(object):
 
     """
     def __init__(self, size=None, um_per_px=1.0, energy=15, filename=None,
-                 yamlfile='', matrix_elements=''):
+                 yamlfile=''):
         """Constructor
 
         Parameters
@@ -54,8 +54,6 @@ class Phantom2d(object):
             filename.yaml
         yamlfile : string
             used with filename; contains compound data, e.g. 'filename.yaml'
-        matrix_elements : space-separated string of element names
-            default = empty-string ""
 
         """
         assert size is not None or filename is not None
@@ -70,11 +68,11 @@ class Phantom2d(object):
         self.el_maps = {}       #
         #
                                 # One of these has the key 'matrix'
-        self.matrix_elements = matrix_elements
         self.filename = filename
         self.yamlfile = yamlfile
         self.energy = energy
         self.um_per_px = float(um_per_px)
+        self.matrix = MatrixProperties(self)
         if filename is not None:
             basedir, basename = os.path.split(filename)
             basename_noext, ext = os.path.splitext(basename)
@@ -89,11 +87,6 @@ class Phantom2d(object):
             else:
                 self.phantom_array = np.zeros(size, dtype=int)
 
-            # If a yamlfile is specified (composition table is defined), assume
-            # that we are doing a forward projection for which we need density
-            # and composition information.
-            if yamlfile:
-                self.matrix = MatrixProperties(self)
             # read tiffs
             self._read_tiffs(filename)
         else:
@@ -114,13 +107,11 @@ class Phantom2d(object):
         """
         rp_filename = 'None' if (self.filename is None) else self.filename
         rp_yamlfile = self.yamlfile if self.yamlfile else "''"
-        rp_elements = self.matrix_elements if self.matrix_elements else "''"
         repstr = '''
             Phantom2d
                 id: {id}
                 filename: {filename}
                 el_maps (keys): {el_maps}
-                matrix_elements: {matrix_elements}
                 yamlfile: {yamlfile}
                 energy: {energy}
                 um_per_px: {um_per_px}
@@ -130,7 +121,6 @@ class Phantom2d(object):
                     el_maps = self.el_maps.keys(),
                     filename = rp_filename,
                     yamlfile = rp_yamlfile,
-                    matrix_elements = rp_elements,
                     energy = self.energy,
                     um_per_px = self.um_per_px,
                     rows = self.rows, cols = self.cols,
@@ -295,11 +285,11 @@ class Phantom2d(object):
         # generate a map for each element
         maps = {}
         # for el in elements:
-        non_matrix_elements = elements.difference(self.matrix_elements.split())
+        non_matrix_elements = elements.difference(self.matrix.cp.keys())
         for el in non_matrix_elements:
             maps[el] = np.zeros(self.phantom_array.shape, dtype=np.float32)
 
-        if self.matrix_elements:
+        if self.matrix.cp:
             maps['matrix'] = np.zeros(self.phantom_array.shape,
                                       dtype=np.float32)
 
@@ -311,7 +301,7 @@ class Phantom2d(object):
 
             # Distribute elements to the individual maps or the matrix
             for el in weights:
-                if el in self.matrix_elements.split():
+                if el in self.matrix.cp:
                     # add to the matrix map
                     m = maps['matrix']
                 else:
@@ -372,5 +362,5 @@ if __name__ == '__main__':
 #     GOLOSIO_MAP = os.path.join('data', 'golosio_100*.tiff')
     MAP = r'R:\Science\XFM\GaryRuben\projects\TMM\work\data' \
                   r'\phantom1_100.png'
-    p = Phantom2d(filename=MAP, matrix_elements='H C N O Na P S Cl K')
+    p = Phantom2d(filename=MAP)#, matrix_elements='H C N O Na P S Cl K')
     p.split_map('data')
