@@ -114,8 +114,8 @@ def rotate(im, angle):
     assert issubclass(im.dtype.type, np.floating)
 
     scale = max(abs(im.min()), im.max())
-    # mode = 'nearest'    # about 17 ms for a 500x500 array
-    mode = 'constant'     # about 13 ms for a 500x500 array
+    mode = 'nearest'    # about 17 ms for a 500x500 array
+    # mode = 'constant'     # about 13 ms for a 500x500 array
     return st.rotate(im/scale, angle, mode=mode) * scale
 
 
