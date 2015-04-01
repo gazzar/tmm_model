@@ -1,6 +1,5 @@
 """General helper functions"""
 
-from skimage.io import imsave, imread
 import skimage.transform as st
 import numpy as np
 import scipy.ndimage as nd
@@ -11,6 +10,7 @@ import glob, fnmatch, re
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import tifffile
+    from skimage.io import imsave, imread
 
 
 def write_tiff32(filename, im):
