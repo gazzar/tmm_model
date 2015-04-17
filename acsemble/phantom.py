@@ -223,7 +223,11 @@ class Phantom2d(object):
 
         """
         try:
-            im = imread(filename)[:, :, 0]
+            im = imread(filename)
+            if len(im.shape) == 3:
+                # RGBA greyscale image; just use the 'R' layer
+                im = im[:, :, 0]
+            assert len(im.shape) == 2
         except IOError:
             print('Could not open' + filename)
             raise
