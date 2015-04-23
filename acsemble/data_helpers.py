@@ -1,5 +1,6 @@
 from __future__ import print_function
 import xraylib as xrl
+import numpy as np
 
 
 class MatrixProperties(object):
@@ -18,6 +19,7 @@ class MatrixProperties(object):
                             if len(v[1]) > 1][0]
         # Now, get the matrix compound density and elemental-makeup dictionary.
         self.density, self.cp = self.compounds[self.compound_ix]
+        assert np.isclose(sum(self.cp.values()), 1.0)
 
     def ma(self, energy):
         return sum([self.cp[el] * xrl.CS_Total(
