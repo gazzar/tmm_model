@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 # sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
-MAIA_DATA = os.path.join(PATH_HERE, 'data', 'Maia_384A.csv')
+MAIA_DATA = os.path.join(PATH_HERE, 'data', 'Maia_384C.csv')
 
 
 class Maia(object):
