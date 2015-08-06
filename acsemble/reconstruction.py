@@ -37,6 +37,8 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
 
     if algorithm == 'f':
         # conventional filtered backprojection
+        # im = iradon(sinogram, anglelist, circle=True, interpolation='cubic')
+        # im = iradon_sart(sinogram, anglelist, image=im)
         im = iradon(sinogram, anglelist, circle=True)
 
     if algorithm == 's':
