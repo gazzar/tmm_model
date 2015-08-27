@@ -18,19 +18,6 @@ class CorrectLoadTests(unittest.TestCase):
         self.assertTrue(isinstance(self.det, Maia))
 
 
-class CoordinateTests(unittest.TestCase):
-    def setUp(self):
-        self.det = Maia()
-
-    def test_compare_coords(self):
-        import maia_funcs
-
-        # compare Matt's and Chris's detector element id maps
-        cr_map = self.det.make_map(lambda:self.det.maia_data.index, -1.0)
-        md_map = np.array(maia_funcs.getPixelMap())
-        self.assertTrue(np.allclose(cr_map, md_map))
-
-
 class ChannelSelectionTests(unittest.TestCase):
     def setUp(self):
         self.det = Maia()
