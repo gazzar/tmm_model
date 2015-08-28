@@ -65,6 +65,9 @@ class Mlem(object):
 
         g.clip(min=self.epsilon, out=g)
 
+        self.g = g      # Save this for diagnostic purposes
+        self.imsave_g()
+
         # form parenthesised term (g_j / g) from (*)
         r = self.g_j / g
 
@@ -74,6 +77,7 @@ class Mlem(object):
         # Renormalise backprojected term / \sum h)
         # Normalise the individual pixels in the reconstruction
         self.f *= g_r / self.weighting
+        self.imsave_f()
 
         # print some progress output
         if 0:
@@ -104,7 +108,10 @@ class Mlem(object):
         )
 
     def imsave_f(self):
-        imageio.imsave('mlem_mpl_%03d.tif' % self.i, self.f.astype(np.float32))
+        imageio.imsave('mlem_f_%03d.tif' % self.i, self.f.astype(np.float32))
+
+    def imsave_g(self):
+        imageio.imsave('mlem_g_%03d.tif' % self.i, self.g.astype(np.float32))
 
 
 def noisify(im, frac=0.1):
@@ -207,27 +214,11 @@ def density_from_attenuation_for_matrix(p):
     return mass.sum() / sinogram.sum()
 
 
-def mlem_on_single_element_plus_matrix(p, q):
-    """
-    Run mlem on a single-element + matrix model. That is, don't deal with the
-    more general case of multiple elements + a matrix yet
-
-    Parameters
-    ----------
-
-    """
-    # Get the single element in p so we can run mlem
-    el = p.el_maps.keys()
-    assert len(el) == 1
-    el = el[0]
-    cal = density_from_fluorescence_for_el(p, q, el)
-
-
 if __name__ == '__main__':
 
     import phantom
     from maia import Maia
-    from skimage.transform import radon, iradon
+    from skimage.transform import iradon
     import os
 
     '''
@@ -244,7 +235,6 @@ if __name__ == '__main__':
         return y
     '''
 
-
     def projector_model(x, angles=None):
         el = mlem.el
         p = mlem.p
@@ -255,7 +245,6 @@ if __name__ == '__main__':
         y *= conversion_factor_for_el
 
         return y
-
 
     def backprojector(x, angles=None):
         """
@@ -282,7 +271,8 @@ if __name__ == '__main__':
     MAP_PATTERN = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom-*.tiff')
     YAMLFILE = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom.yaml')
     UM_PER_CM = 1e4
-    WIDTH_UM = 100.0
+    # WIDTH_UM = 100.0
+    WIDTH_UM = 2000.0
     WIDTH_PX = 100
     UM_PER_PX = WIDTH_UM / WIDTH_PX
     ENERGY_KEV = 15.6
@@ -344,7 +334,7 @@ if __name__ == '__main__':
     mlem = Mlem(p, ELEMENT, projector_model, backprojector, g_j, angles=angles)
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
-    mlem.imsave_f()
-    for im in range(4):
+    # mlem.imsave_f()
+    for im in range(10):
         mlem.iterate()
-    mlem.imsave_f()
+    # mlem.imsave_f()
