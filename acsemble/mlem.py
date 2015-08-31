@@ -65,9 +65,11 @@ class Mlem(object):
 
         g.clip(min=self.epsilon, out=g)
 
-        self.g = g      # Save this for diagnostic purposes
-        self.imsave_g()
-
+        if config.show_images:
+            self.g = g      # Save this for diagnostic purposes
+            self.imsave_g()
+            im = self.backproject(g, angles=self.angles)
+            imageio.imsave('mlem_d_%03d.tif' % self.i, im.astype(np.float32))
         # form parenthesised term (g_j / g) from (*)
         r = self.g_j / g
 
@@ -77,7 +79,9 @@ class Mlem(object):
         # Renormalise backprojected term / \sum h)
         # Normalise the individual pixels in the reconstruction
         self.f *= g_r / self.weighting
-        self.imsave_f()
+
+        if config.show_images:
+            self.imsave_f()
 
         # print some progress output
         if 0:
@@ -107,11 +111,11 @@ class Mlem(object):
             )
         )
 
-    def imsave_f(self):
-        imageio.imsave('mlem_f_%03d.tif' % self.i, self.f.astype(np.float32))
+    def imsave_f(self, name_pattern='mlem_f_%03d.tif'):
+        imageio.imsave(name_pattern % self.i, self.f.astype(np.float32))
 
-    def imsave_g(self):
-        imageio.imsave('mlem_g_%03d.tif' % self.i, self.g.astype(np.float32))
+    def imsave_g(self, name_pattern='mlem_g_%03d.tif'):
+        imageio.imsave(name_pattern % self.i, self.g.astype(np.float32))
 
 
 def noisify(im, frac=0.1):
@@ -268,8 +272,8 @@ if __name__ == '__main__':
 
     PATH_HERE = os.path.abspath(os.path.dirname(__file__))
     ELEMENT = 'Ni'
-    MAP_PATTERN = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom-*.tiff')
-    YAMLFILE = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom.yaml')
+    MAP_PATTERN = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom2-*.tiff')
+    YAMLFILE = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom2.yaml')
     UM_PER_CM = 1e4
     # WIDTH_UM = 100.0
     WIDTH_UM = 2000.0
@@ -335,6 +339,6 @@ if __name__ == '__main__':
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
     # mlem.imsave_f()
-    for im in range(10):
+    for im in range(50):
         mlem.iterate()
     # mlem.imsave_f()
