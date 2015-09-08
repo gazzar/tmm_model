@@ -222,7 +222,7 @@ if __name__ == '__main__':
 
     import phantom
     from maia import Maia
-    from skimage.transform import iradon
+    from skimage.transform import iradon, iradon_sart
     import os
 
     '''
@@ -266,7 +266,10 @@ if __name__ == '__main__':
 
         # On the next line, the filter=None selection is *very* important
         # as using the ramp filter causes the scheme to diverge!
-        y = iradon(x, theta=angles, circle=True, filter=None)
+        if config.backprojector == 'fbp':
+            y = iradon(x, theta=angles, circle=True, filter=None)
+        elif config.backprojector == 'sart_no_prior':
+            y = iradon_sart(x, theta=angles)
         y[circular_mask] = 0
         return y
 
