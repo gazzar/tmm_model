@@ -46,7 +46,8 @@ class OutgoingPhotonEnergyTests(unittest.TestCase):
         )
         self.assertTrue(energy_outer > energy_inner)      # because backscatter
         self.assertTrue(energy_outer < self.phantom.energy)
-        self.assertAlmostEqual(energy_outer, 14.324, places=3)
+        # self.assertAlmostEqual(energy_outer, 14.324, places=3) # Maia Rev A
+        self.assertAlmostEqual(energy_outer, 14.282, places=3) # For Maia Rev C
 
 if __name__ == '__main__':
     import nose

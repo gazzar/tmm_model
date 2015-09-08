@@ -37,15 +37,17 @@ class Phantom2d(object):
     or by reading a 2d integer index array (a .png file) and a matching dict of
     compound ids that define the composition at each pixel. If the latter, the
     dict of float32 arrays must be created locally.
+    The values in the tiff density-maps have units of g/cm3. Together with the
+    um_per_px value,
 
     """
-    def __init__(self, size=None, um_per_px=1.0, energy=15, filename=None,
+    def __init__(self, shape=None, um_per_px=1.0, energy=15, filename=None,
                  yamlfile=''):
         """Constructor
 
         Parameters
         ----------
-        size : (rows,cols) in px
+        shape : (rows,cols) in px
         um_per_px : um_per_px, e.g. 0.1 defines a scale of 0.1 um/px
         energy : incident energy (keV)
         filename : string
@@ -56,7 +58,7 @@ class Phantom2d(object):
             used with filename; contains compound data, e.g. 'filename.yaml'
 
         """
-        assert size is not None or filename is not None
+        assert shape is not None or filename is not None
         # The el_maps field is a container for the elemental maps. One map is
         # special; the 'matrix' map represents the density map of the
         # matrix compound.
@@ -72,8 +74,8 @@ class Phantom2d(object):
         self.yamlfile = yamlfile
         self.energy = energy
         self.um_per_px = float(um_per_px)
-        self.matrix = MatrixProperties(self)
         if filename is not None:
+            self.matrix = MatrixProperties(self)
             basedir, basename = os.path.split(filename)
             basename_noext, ext = os.path.splitext(basename)
             assert ext in ['.png', '.tif', '.tiff']
@@ -85,16 +87,17 @@ class Phantom2d(object):
                 self.split_map(basedir)
                 filename = os.path.join(basedir, basename_noext+'-*.tiff')
             else:
-                self.phantom_array = np.zeros(size, dtype=int)
+                self.phantom_array = np.zeros(shape, dtype=int)
 
             # read tiffs
             self._read_tiffs(filename)
         else:
             # No filename was specified; just create a minimal Phantom2d
             # object to be populated by the instantiating code.
-            self.rows, self.cols = size
-            assert type(self.rows) is int and type(self.cols) is int
-            self.phantom_array = np.zeros(size, dtype=int)
+            self.rows, self.cols = shape
+            assert isinstance(self.rows, (int, long)) and \
+                   isinstance(self.cols, (int, long))
+            self.phantom_array = np.zeros(shape, dtype=int)
 
     def __str__(self):
         """String representation of a Phantom2d object.
@@ -265,6 +268,15 @@ class Phantom2d(object):
             im = read_tiff32(f)
             self.rows, self.cols = im.shape
             self.el_maps[el] = im
+
+    def insert_map(self, el, im):
+        rows, cols = im.shape
+        assert(self.rows == rows and self.cols == cols)
+        assert(el not in self.el_maps)
+        self.el_maps[el] = im
+
+    def delete_map(self, el):
+        self.el_maps.pop(el)
 
     def split_map(self, dirname):
         """Split the single greyscale lookup map + composition dictionary into

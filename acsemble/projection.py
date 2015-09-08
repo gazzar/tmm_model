@@ -182,7 +182,7 @@ def project_sinogram(event_type, p, q, anglelist, el=None):
     return sinogram
 
 
-def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
+def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
     """Generates the image-sized map of irradiance [1/(cm2 s)] at each 2d pixel
     for a given angle accounting for absorption at the incident energy by the
     full elemental distribution.
@@ -203,6 +203,10 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
         this direction is unimportant, but for the Radon transform with
         attenuation, we should project in the beam propagation direction.
         (default True).
+    matrix_only : bool, optional
+        If True, the map only considers the matrix and doesn't consider the
+        other elements in the model.
+        (default False).
 
     Returns
     -------
@@ -214,11 +218,12 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True):
 
     # The linear absorption map mu0 = ma_M * mu_M + sum_k ( ma_k * mu_k )
     mu0 = p.matrix.ma(p.energy) * p.el_maps['matrix']
-    for el in p.el_maps:
-        if el == 'matrix':
-            continue
-        Z = xrl.SymbolToAtomicNumber(el)
-        mu0 += xrl.CS_Total(Z, p.energy) * p.el_maps[el]
+    if not matrix_only:
+        for el in p.el_maps:
+            if el == 'matrix':
+                continue
+            Z = xrl.SymbolToAtomicNumber(el)
+            mu0 += xrl.CS_Total(Z, p.energy) * p.el_maps[el]
 
     # project at angle theta by rotating the phantom by angle -theta and
     # projecting along the z-axis (along columns)
