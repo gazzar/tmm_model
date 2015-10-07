@@ -2,7 +2,11 @@ import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
 import unittest
-from maia import Maia
+from maia import Maia, Pad
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import transformations as tx
 import numpy as np
 
 
@@ -106,6 +110,29 @@ class SolidAngleTests(unittest.TestCase):
         sa1 = self.det._get_solid_angle(A, B, a, b, self.d_mm)
         sa2 = self.det._get_solid_angle(B, A, a, b, self.d_mm)
         self.assertFalse(np.allclose(sa1, sa2))
+
+
+class PadTests(unittest.TestCase):
+    def test_null_rotation(self):
+        # Check that rotation matrix to reorient to a unit normal
+        # oriented along z is the identity matrix.
+        self.pad = Pad(id=1, centre_xyz=[0,0,0], unit_normal=[0,0,1],
+                       width=1, height=1)
+        r = self.pad._get_pad_rotation_matrix()
+        np.testing.assert_allclose(r, np.eye(4))
+
+    def test_rotation(self):
+        # Check that rotation matrix calculated to reorient pad matches the
+        # expected coordinate system of the transformations.py module.
+        self.pad = Pad(id=2, centre_xyz=[0,0,0], unit_normal=[0,1,0],
+                       width=1, height=1)
+        r = self.pad._get_pad_rotation_matrix()
+        # Matrix to rotate about an axis defined by a point and direction is
+        # rotation_matrix(angle, direction, point=None):
+        # To rotate from [0,0,1] to [0,1,0], rotate by 90deg about [1,0,0]
+        tx_r1 = tx.rotation_matrix(-np.pi/2, [1,0,0])
+        tx_r2 = tx.rotation_matrix(np.pi/2, [-1,0,0])
+        pass
 
 if __name__ == '__main__':
     import nose
