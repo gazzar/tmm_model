@@ -24,6 +24,10 @@ The file tifffile.py is included under the terms of the modified BSD license and
 is Copyright (c) 2008-2014, Christoph Gohlke
 It was obtained from http://www.lfd.uci.edu/~gohlke/ in January 2014
 
+The file transformations.py is included under the terms of the modified BSD
+license and is Copyright (c) 2006-2015, Christoph Gohlke
+It was obtained from http://www.lfd.uci.edu/~gohlke/ in October 2015
+
 Notes:
 This code uses xraylib [1]
 [1] T. Schoonjans et al., Spectrochim. Acta B 66, 776 (2011),
