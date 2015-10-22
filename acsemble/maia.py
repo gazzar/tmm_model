@@ -8,6 +8,10 @@ os.environ.update(
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import transformations as tx
 
 from mayavi import mlab
 
@@ -20,62 +24,137 @@ MAIA_DATA = os.path.join(PATH_HERE, 'data', 'Maia_384C.csv')
 
 
 class Pad(object):
-    """Represents a single detector pad
+    """Represents a single detector pad. The pad is created in the
+    constructor using the size and position data from the pad_geometry tuple,
+    then transformed via affine transformations to its absolute position in
+    space using the detector centre and unit normal vectors. Fixed geometry
+    attribute values are then immediately computed, so this is only done once at
+    construction.
+
+    Attributes
+    ----------
+    id : int
+    width : float
+    height : float
+    pad_unit_normal : 3-element nd-array of floats; vector
+    pad_centre_xyz : 3-element nd-array of floats; vector
+    area_mm2 : float
+    T : geometric transform matrix that transforms coordinates from their
+        initial defined locations to the final pad location
+    vertices : 5 row x 4 col nd-array of floats
+        Final absolute coords of the four pad corners and the pad centre.
+        Columns are x,y,z,1 where the column of 1's is a convenience value
+        that arises when performing 4x4 geometric transform matrix operations.
 
     """
+    # ids is a collection that tracks instantiated pad ids to ensure we never
+    # create a pad with the same id twice.
     ids = set()
 
-    def __init__(self, id, centre_xyz, unit_normal, width, height):
-        assert len(centre_xyz) == 3
-        assert len(unit_normal) == 3
-        self.centre_xyz = np.array(centre_xyz, dtype=float)
-        self.unit_normal = np.array(unit_normal, dtype=float) / \
-                           np.linalg.norm(unit_normal)
+    def __init__(self, id, pad_geometry, detector_centre_mm,
+                 detector_unit_normal):
+        """
+        Parameters
+        ----------
+        id : int
+            pad id
+        pad_geometry : tuple of floats
+            (X, Y, Z, width, height)
+        detector_centre_mm : tuple of floats
+            (x, y, z)
+        detector_unit_normal : tuple of floats
+            (x, y, z)
 
-        width = float(width)
-        height = float(height)
+        """
+        px, py, pz, width, height = pad_geometry
+        self.width = width = float(width)
+        self.height = height = float(height)
+
+        assert len(detector_centre_mm) == 3
+        assert len(detector_unit_normal) == 3
+        self.pad_unit_normal = (np.array(detector_unit_normal, dtype=float) /
+                                     np.linalg.norm(detector_unit_normal))
+
+        # Verify that we haven't allocated this id previously
         ids_len = len(Pad.ids)
         Pad.ids.add(id)
         assert len(Pad.ids) == ids_len + 1
+
         self.id = id
-        self.width = width
-        self.height = height
-        self.T = np.eye(4)      # Start with identity transform matrix
+        self.area_mm2 = width * height
+
+        # On the next line, angle is the angle between the unit z-vector and
+        # the detector_unit_normal vector.
+        self.T = self._get_pad_transform_matrix(detector_centre_mm)
+        self.pad_centre_xyz = np.array([px, py, pz], dtype=float)
         self.vertices = self._vertices_from_params()
+        # Update centre coords to transformed coords
+        self.pad_centre_xyz = self.vertices[-1, :3]
+
+        # Theta and Phi properties
+        cx, cy, cz = self.pad_centre_xyz
+        self.theta = np.arccos(cz / np.linalg.norm(self.pad_centre_xyz))
+        self.phi = np.arctan2(cy, cx)
+
+    @staticmethod
+    def clear_pads():
+        Pad.ids = set()
 
     def _vertices_from_params(self):
+        """Returns 3d coords of the four pad corners.
+
+        """
         w = self.width
         h = self.height
-        cx, cy, cz = self.centre_xyz
+        cx, cy, cz = self.pad_centre_xyz
         # pad corner coords in the pad coord system whose plane normal is 0,0,1
-        vertices = np.array([
-            (cx + w / 2.0, cy + h / 2.0, cz, 1),
-            (cx - w / 2.0, cy + h / 2.0, cz, 1),
-            (cx + w / 2.0, cy - h / 2.0, cz, 1),
-            (cx - w / 2.0, cy - h / 2.0, cz, 1),
-        ])
-        return np.dot(self.T, vertices)
+        vertices = np.transpose(np.array([
+            (cx + w / 2.0, cy + h / 2.0, cz, 1),    # corner 1
+            (cx - w / 2.0, cy + h / 2.0, cz, 1),    # corner 2
+            (cx + w / 2.0, cy - h / 2.0, cz, 1),    # corner 3
+            (cx - w / 2.0, cy - h / 2.0, cz, 1),    # corner 4
+            (cx,           cy,           cz, 1),    # centre
+        ]))
+        return np.transpose(np.dot(self.T, vertices))
 
-    def _get_pad_rotation_matrix(self):
-        '''
-        # Find the rotation matrix R that rotates 0,0,1 to self.unit_normal
-        # See http://math.stackexchange.com/questions/180418/
-        #         calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
-        a = np.array([0.0, 0.0, 1.0])
-        v = np.cross(a, self.unit_normal)
-        s = np.norm(v)
-        '''
-        # http://gamedev.stackexchange.com/questions/20097/
-        # how-to-calculate-a-3x3-rotation-matrix-from-2-direction-vectors
-        # Note: My vectors are normalised so I don't normalize the results as
-        # done in the stackoverflow answer.
-        R = np.eye(4)
+    def _get_pad_transform_matrix(self, detector_centre_mm):
         nhat = [0.0, 0.0, 1.0]
-        if not np.allclose(nhat, self.unit_normal):
-            R[0, 0:3] = np.array(nhat)
-            R[2, 0:3] = mz = np.cross(nhat, self.unit_normal)
-            R[1, 0:3] = np.cross(mz, nhat)
-        return R
+
+        if np.allclose(nhat, self.pad_unit_normal):
+            R1 = np.eye(4)
+        else:
+            angle = tx.angle_between_vectors(nhat, self.pad_unit_normal)
+            direction = np.cross(nhat, self.pad_unit_normal)
+            R1 = tx.rotation_matrix(angle, direction)
+        T1 = tx.translation_matrix(detector_centre_mm)
+        T = tx.concatenate_matrices(R1, T1)
+        return T
+
+    def solid_angle(self):
+        """Returns the solid angle of the detector pad w.r.t. a sphere
+        centred at the origin.
+
+        Returns
+        -------
+        float
+
+        """
+        # non-overlapping triangles have vertex indices = [(0,1,2), (1,2,3)]
+        # so calculate them separately and add them
+        vectors = self.vertices[:4, :3]
+        norms = np.linalg.norm(vectors, axis=1)
+        # unit vectors
+        r0, r1, r2, r3 = vectors / norms[np.newaxis].T
+
+        # triangle 1
+        n1 = np.abs(np.dot(np.cross(r0, r1), r2))
+        d1 = np.dot(r0, r1) + np.dot(r1, r2) + np.dot(r2, r0) + 1.0
+        # triangle 2
+        n2 = np.abs(np.dot(np.cross(r2, r1), r3))
+        d2 = np.dot(r1, r2) + np.dot(r2, r3) + np.dot(r3, r1) + 1.0
+
+        omega = 2.0 * (np.arctan(n1/d1) + np.arctan(n2/d2))
+        return omega
 
     def show3d(self, show_id=False):
         """Show the pad in 3d using the Mayavi mlab triangular_mesh function.
@@ -97,73 +176,65 @@ class Pad(object):
         triangles = [(0,1,2), (1,2,3)]
         mlab.triangular_mesh(x, y, z, triangles)
         if show_id:
-            cx, cy, cz = self.centre_xyz
-            mlab.text3d(cx-0.2, cy, cz+0.1, str(self.id), scale=0.2,
-                        orient_to_camera=False, orientation=[0,0,1])
+            centre_xyz = self.vertices[4].T[:3]
+            cx, cy, cz = centre_xyz + self.pad_unit_normal * 0.1
+            # orientation are angles "referenced to the z axis"
+            mlab.text3d(cx, cy, cz, str(self.id), scale=0.2,
+                        orient_to_camera=True,
+                        # orient_to_camera=False,
+                        # orientation=tx.euler_from_matrix(self.T),
+            )
 
 
 class Maia(object):
     """Represents the detector geometry and provides visualisation routines.
 
     """
-
-    def __init__(self, d_mm=10.0):
+    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):
         """
-        d_mm : float
-            Distance in mm from specimen centre to detector face
+        centre_mm : 3-tuple of float
+            Detector face centre (x, y, z) coords in mm
+        unit_normal: array-like
+            Unit vector perpendicular to detector face
 
         """
+        assert len(centre_mm) == 3
+        assert len(unit_normal) == 3
+
         # Read Chris Ryan's detector data
         self.maia_data = pd.read_csv(MAIA_DATA, index_col='Data',
                                      skipinitialspace=True, header=12)
-        self.pads = self.make_pads(self.maia_data)
-        self.d_mm = d_mm
+        self.unit_normal = (np.array(unit_normal, dtype=float) /
+                                np.linalg.norm(unit_normal))
+        self.centre_mm = centre_mm
+        self.pads = self.make_pads(self.maia_data, centre_mm, unit_normal)
         self.rows = 20
         self.cols = 20
         self.shape = (self.rows, self.cols)
 
-        # Calculate and append area and solid angle columns
-        # then make some 2D maps for plotting and comparison
-        x = self.maia_data.X
-        y = self.maia_data.Y
-
-        a_mm = self.maia_data['width']
-        b_mm = self.maia_data['height']
-        A_mm = abs(x) - a_mm / 2
-        B_mm = abs(y) - b_mm / 2
-
-        # Ensure that the pads don't cross the x or y axes because there are
-        # simplifying assumptions in the code that rely on this fact.
-        assert (A_mm >= 0.0).all()
-        assert (B_mm >= 0.0).all()
-
-        self.maia_data['area_mm2'] = a_mm * b_mm
-        self.maia_data['omega'] = self.v_getOmega(self, A_mm, B_mm,
-                                                  a_mm, b_mm, d_mm)
-        self.maia_data['angle_X_rad'] = np.arctan(x / d_mm)
-        self.maia_data['angle_Y_rad'] = np.arctan(y / d_mm)
-
-        self.maia_data['theta'] = np.pi / 2 + np.arctan(d_mm / np.hypot(x, y))
-        self.maia_data['phi'] = np.arctan2(y, x)
-
-    def make_pads(self, maia_data):
+    def make_pads(self, maia_data, maia_centre_mm, maia_unit_normal):
         """Create pad objects corresponding to maia_data Pandas dataframe
 
         Arguments:
         maia_data - Pandas dataframe corresponding to Chris Ryan's csv data
 
         Returns:
-        list of Pad objects
+        dict of Pad objects
 
         """
-        pads = []
+        pads = {}
         for id, p in maia_data.iterrows():
-            pads.append(Pad(id, (p.X, p.Y, p.Z), [0,0,1], p.width, p.height))
+            pad_geometry = (p.X, p.Y, p.Z, p.width, p.height)
+            pads[id] = Pad(id, pad_geometry, maia_centre_mm, maia_unit_normal)
         return pads
 
     def show3d(self, *args, **kwargs):
-        for p in self.pads:
+        # Show pads
+        for p in self.pads.itervalues():
             p.show3d(*args, **kwargs)
+
+        # Show origin (0,0,0)
+        mlab.points3d([0], mode='axes', scale_mode='none')
 
     def _rect_solid_angle(self, a, b, d):
         """Return the solid angle of a rectangle with one corner at the origin.
@@ -185,11 +256,14 @@ class Maia(object):
 
         return omega
 
-
     def _get_solid_angle(self, A, B, a, b, d):
         """Return the solid angle of a rectangular detector element of size
         width a * height b that does not lie across either the x=0 or y=0 axes
         and whose closest point to the origin lies at (x, y) = (A, B)
+        This is only correct when the detector lies perpendicular to the beam
+        axis. As pads can now be oriented arbitrarily, the solid angle
+        computation within the pad class is to be used instead of this. This
+        is retained to provide a unit test validation method.
 
         From RJ Mathar, Solid Angle of a Rectangular Plate,
         Note 2 at http://www.mpia-hd.mpg.de/~mathar/public
@@ -206,6 +280,9 @@ class Maia(object):
         solid angle (sr)
 
         """
+        # TODO: Change func to take pad centre coords and allow it to cross
+        # TODO: the x and y axes. Then change calls that use this accordingly.
+
         omega1 = self._rect_solid_angle(2.0 * (A + a), 2.0 * (B + b), d)
         omega2 = self._rect_solid_angle(2.0 * A, 2.0 * (B + b), d)
         omega3 = self._rect_solid_angle(2.0 * (A + a), 2.0 * B, d)
@@ -217,7 +294,6 @@ class Maia(object):
 
     # Create a vectorised version
     v_getOmega = np.vectorize(_get_solid_angle, excluded=['self', 'd'])
-
 
     def make_map(self, func, fill_value=0.0):
         """Returns a 20x20 map of the detector with the specified function
@@ -239,7 +315,6 @@ class Maia(object):
               self.maia_data.Column] = func()
         return map2d
 
-
     def channel(self, row, col):
         """Return Dataframe for detector element at row, col index
 
@@ -247,14 +322,11 @@ class Maia(object):
         return self.maia_data[(self.maia_data.Row == row) &
                               (self.maia_data.Column == col)]
 
-
-    def area(self, row, col):
+    def area(self, id):
         """Return area of maia element row, col
 
         """
-        el = self.channel(row, col)
-        return el.iloc[0].area_mm2
-
+        return self.pads[id].area_mm2
 
     def yx(self, row, col):
         """Return (Y, X) centre coords (mm) of maia element row, col
@@ -263,7 +335,6 @@ class Maia(object):
         el = self.channel(row, col)
         y, x = el.iloc[0][['Y', 'X']]
         return y, x
-
 
     def yx_angles_radian(self, row, col):
         """Return angles along Y and X to centre of maia element
@@ -274,22 +345,12 @@ class Maia(object):
         yr, xr = el.iloc[0][['angle_Y_rad', 'angle_X_rad']]
         return yr, xr
 
-
     def solid_angle(self, row, col):
         """Return solid angle of maia element row, col
 
         """
         el = self.channel(row, col)
-        '''
-        a_mm, b_mm, y, x = el.iloc[0][['width', 'height', 'Y', 'X']]
-        A_mm = abs(x) - a_mm/2
-        B_mm = abs(y) - b_mm/2
-
-        omega = self.get_omega(A_mm, B_mm, a_mm, b_mm, self.d_mm)
-        return omega
-        '''
         return el.iloc[0].omega
-
 
     def det_show(self, a, cmap='hot'):
         """Display a 20x20 detector map
@@ -297,7 +358,6 @@ class Maia(object):
         """
         plt.imshow(a, interpolation='nearest', origin='lower', cmap=cmap)
         plt.colorbar()
-
 
     def channel_selection(self, quadrant=None, row=None, col=None):
         """A generator for the Maia channel IDs (which are also the
@@ -331,7 +391,6 @@ class Maia(object):
         for channel in df.index.values:
             yield channel
 
-
     def maia_data_column_from_id(self, channel_id, column_name):
         """Return the entry from the specified channel id and column in the
         maia_data Pandas dataframe.
@@ -352,37 +411,6 @@ class Maia(object):
 
 
 if __name__ == '__main__':
-    from tests import maia_funcs
-
-    det = Maia()  # Make a detector instance
-    det.show3d(show_id=False)
+    det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
+    det.show3d(show_id=True)
     mlab.show()
-
-    '''
-    # Geometry
-    d_mm = 10.0
-    det_px_mm = 0.4
-
-    print det.solid_angle(7, 7)
-
-    # Location of Matt's CSV file that has the collimator info in it.
-    dirPath = "."
-    csvPath = \
-        'mask-Mo-3x100-R-10-T-04-gap-75-grow-09-tune-103-safe-01-glue-025-1.csv'
-    csvPath = os.path.join('tests', csvPath)
-
-    # Get the solid angle distribution.
-    md_sa_map, md_area_map = maia_funcs.getCollAreas(dirPath, csvPath, d_mm,
-                                                     det_px_mm)
-
-    cr_area_map = det.make_map(lambda: det.maia_data.area_mm2)
-    cr_sa_map = det.make_map(lambda: det.maia_data.omega)
-
-    # % diff b/w Matt's and Chris's solid angle maps (normalised to Chris's values
-    det.det_show(100 * (md_sa_map - cr_sa_map) / cr_sa_map, cmap='winter')
-    # det.det_show(md_sa_map, cmap='winter')
-
-    #angles_map = det.make_map(lambda:det.maia_data.angle_Y_rad)
-    #det.det_show(angles_map, cmap='summer')
-    plt.show()
-    '''

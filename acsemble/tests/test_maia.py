@@ -21,6 +21,13 @@ class CorrectLoadTests(unittest.TestCase):
     def test_simple_load(self):
         self.assertTrue(isinstance(self.det, Maia))
 
+    def tearDown(self):
+        """The Pad class maintains an internal check to ensure pad objects
+        aren't replaced. Clear the internal check state.
+
+        """
+        Pad.clear_pads()
+
 
 class ChannelSelectionTests(unittest.TestCase):
     def setUp(self):
@@ -66,21 +73,121 @@ class ChannelSelectionTests(unittest.TestCase):
         ch = list(self.det.channel_selection(row=range(9), col=range(9)))
         self.assertTrue(len(ch)==80)        # 9x9-1=80
 
+    def tearDown(self):
+        """The Pad class maintains an internal check to ensure pad objects
+        aren't replaced. Clear the internal check state.
+
+        """
+        Pad.clear_pads()
+
+class PadTests(unittest.TestCase):
+    def setUp(self):
+        # pad lies along -ve z-axis (normal doesn't matter)
+        self.pad_geometry = (0, 0, 0, 1, 1)  # x,y,z,w,h
+
+    def test_null_transform(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, 0, 0],
+                       detector_unit_normal=[0, 0, 1])
+        r = self.pad._get_pad_transform_matrix(detector_centre_mm=[0, 0, 0])
+        np.testing.assert_allclose(r, np.eye(4))
+
+    @unittest.skip
+    def test_rotation(self):
+        # Check that rotation matrix calculated to reorient pad matches the
+        # expected coordinate system of the transformations.py module.
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, 0, 0],
+                       detector_unit_normal=[0, 1, 0])
+        r = self.pad._get_pad_transform_matrix(detector_centre_mm=[0, 0, 0])
+        # Matrix to rotate about an axis defined by a point and direction is
+        # rotation_matrix(angle, direction, point=None):
+        # To rotate from [0,0,1] to [0,1,0], rotate by 90deg about [1,0,0]
+        tx_r1 = tx.rotation_matrix(-np.pi/2, [1,0,0])
+        tx_r2 = tx.rotation_matrix(np.pi/2, [-1,0,0])
+
+    def test_spherical_from_cartesian1(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, 0, 1],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, 0.0)
+
+    def test_spherical_from_cartesian2(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[1, 0, 0],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, np.pi/2)
+        self.assertAlmostEqual(self.pad.phi, 0.0)
+
+    def test_spherical_from_cartesian3(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, 1, 0],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, np.pi/2)
+        self.assertAlmostEqual(self.pad.phi, np.pi/2)
+
+    def test_spherical_from_cartesian4(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, 0, -1],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, np.pi)
+
+    def test_spherical_from_cartesian5(self):
+        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[-1, 0, 0],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, np.pi/2)
+        self.assertAlmostEqual(self.pad.phi, np.pi)
+
+    def test_spherical_from_cartesian6(self):
+        self.pad = Pad(id=8, pad_geometry=self.pad_geometry,
+                       detector_centre_mm=[0, -1, 0],
+                       detector_unit_normal=[0, 0, 1])
+        self.assertAlmostEqual(self.pad.theta, np.pi/2)
+        self.assertAlmostEqual(self.pad.phi, -np.pi/2)
+
+    def tearDown(self):
+        """The Pad class maintains an internal check to ensure pad objects
+        aren't replaced. Clear the internal check state.
+
+        """
+        Pad.clear_pads()
+
 
 class SolidAngleTests(unittest.TestCase):
     def setUp(self):
         self.det = Maia()
-        self.d_mm = 10.0
-        self.a_mm = 5.0
-        self.b_mm = 15.0
-        self.A_mm = 25.0
-        self.B_mm = 35.0
+        self.pad = self.det.pads[1]
 
-    def test_sa_rect1(self):
-        a, b = self.a_mm, self.b_mm
-        sa1 = self.det._rect_solid_angle(a, b, self.d_mm)
-        sa2 = self.det._rect_solid_angle(b, a, self.d_mm)
-        self.assertTrue(np.allclose(sa1, sa2))
+        # A - x-coord of detector element corner closest to the origin
+        # B - y-coord of detector element corner closest to the origin
+        # a - width of detector element
+        # b - height of detector element
+        # d - distance to plane of detector
+        self.A_mm = np.min(self.pad.vertices[:-1,0], axis=0)
+        self.B_mm = np.min(self.pad.vertices[:-1,1], axis=0)
+        self.a_mm = self.pad.width
+        self.b_mm = self.pad.height
+        self.d_mm = self.pad.vertices[3,2]
+
+    def test_solid_angle(self):
+        omega_pad = self.pad.solid_angle()
+        omega_det_pad = self.det._get_solid_angle(
+            self.A_mm, self.B_mm, self.a_mm, self.b_mm, self.d_mm)
+        self.assertAlmostEqual(omega_pad, omega_det_pad)
+
+    def test_all_solid_angles(self):
+        for p in self.det.pads.values():
+            A_mm = np.min(np.abs(p.vertices[:-1,0]), axis=0)
+            B_mm = np.min(np.abs(p.vertices[:-1,1]), axis=0)
+            a_mm = p.width
+            b_mm = p.height
+            d_mm = p.vertices[3,2]
+            omega_pad = p.solid_angle()
+            omega_det_pad = self.det._get_solid_angle(A_mm, B_mm, a_mm, b_mm,
+                                                      d_mm)
+            self.assertAlmostEqual(omega_pad, omega_det_pad)
+
 
     def test_sa_rect1(self):
         a, b = self.a_mm, self.b_mm
@@ -111,28 +218,12 @@ class SolidAngleTests(unittest.TestCase):
         sa2 = self.det._get_solid_angle(B, A, a, b, self.d_mm)
         self.assertFalse(np.allclose(sa1, sa2))
 
+    def tearDown(self):
+        """The Pad class maintains an internal check to ensure pad objects
+        aren't replaced. Clear the internal check state.
 
-class PadTests(unittest.TestCase):
-    def test_null_rotation(self):
-        # Check that rotation matrix to reorient to a unit normal
-        # oriented along z is the identity matrix.
-        self.pad = Pad(id=1, centre_xyz=[0,0,0], unit_normal=[0,0,1],
-                       width=1, height=1)
-        r = self.pad._get_pad_rotation_matrix()
-        np.testing.assert_allclose(r, np.eye(4))
-
-    def test_rotation(self):
-        # Check that rotation matrix calculated to reorient pad matches the
-        # expected coordinate system of the transformations.py module.
-        self.pad = Pad(id=2, centre_xyz=[0,0,0], unit_normal=[0,1,0],
-                       width=1, height=1)
-        r = self.pad._get_pad_rotation_matrix()
-        # Matrix to rotate about an axis defined by a point and direction is
-        # rotation_matrix(angle, direction, point=None):
-        # To rotate from [0,0,1] to [0,1,0], rotate by 90deg about [1,0,0]
-        tx_r1 = tx.rotation_matrix(-np.pi/2, [1,0,0])
-        tx_r2 = tx.rotation_matrix(np.pi/2, [-1,0,0])
-        pass
+        """
+        Pad.clear_pads()
 
 if __name__ == '__main__':
     import nose
