@@ -67,6 +67,7 @@ class Pad(object):
 
         """
         px, py, pz, width, height = pad_geometry
+        self.pad_centre_xyz = np.array([px, py, pz], dtype=float)
         self.width = width = float(width)
         self.height = height = float(height)
 
@@ -86,22 +87,31 @@ class Pad(object):
         # On the next line, angle is the angle between the unit z-vector and
         # the detector_unit_normal vector.
         self.T = self._get_pad_transform_matrix(detector_centre_mm)
-        self.pad_centre_xyz = np.array([px, py, pz], dtype=float)
-        self.vertices = self._vertices_from_params()
+        self.vertices = self._vertices_from_params(self.T)
         # Update centre coords to transformed coords
-        self.pad_centre_xyz = self.vertices[-1, :3]
+        px, py, pz = self.pad_centre_xyz = self.vertices[-1, :3]
 
-        # Theta and Phi properties
-        cx, cy, cz = self.pad_centre_xyz
-        self.theta = np.arccos(cz / np.linalg.norm(self.pad_centre_xyz))
-        self.phi = np.arctan2(cy, cx)
+        # solid angle presented to the coordinate system origin
+        self.omega = self.solid_angle()
+
+        # Angles of the pad centre to the positive z-axis
+        self.angle_X_rad = np.arctan2(px, pz)
+        self.angle_Y_rad = np.arctan2(py, pz)
+
+        # Theta and Phi spherical coordinate properties
+        self.theta = np.arccos(pz / np.linalg.norm(self.pad_centre_xyz))
+        self.phi = np.arctan2(py, px)
 
     @staticmethod
     def clear_pads():
         Pad.ids = set()
 
-    def _vertices_from_params(self):
+    def _vertices_from_params(self, t):
         """Returns 3d coords of the four pad corners.
+
+        Arguments
+        ---------
+        t : 4 x 4 geometric transform matrix applied to the vertices
 
         """
         w = self.width
@@ -115,7 +125,7 @@ class Pad(object):
             (cx - w / 2.0, cy - h / 2.0, cz, 1),    # corner 4
             (cx,           cy,           cz, 1),    # centre
         ]))
-        return np.transpose(np.dot(self.T, vertices))
+        return np.transpose(np.dot(t, vertices))
 
     def _get_pad_transform_matrix(self, detector_centre_mm):
         nhat = [0.0, 0.0, 1.0]
@@ -280,9 +290,6 @@ class Maia(object):
         solid angle (sr)
 
         """
-        # TODO: Change func to take pad centre coords and allow it to cross
-        # TODO: the x and y axes. Then change calls that use this accordingly.
-
         omega1 = self._rect_solid_angle(2.0 * (A + a), 2.0 * (B + b), d)
         omega2 = self._rect_solid_angle(2.0 * A, 2.0 * (B + b), d)
         omega3 = self._rect_solid_angle(2.0 * (A + a), 2.0 * B, d)

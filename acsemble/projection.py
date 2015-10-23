@@ -110,7 +110,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     # rotate by the sum of the projection angle and local detector angle
     # Get angle to rotate maps so that propagation toward detector plane
     # corresponds with direction to maia detector element
-    phi_x = maia_d.maia_data_column_from_id(q, 'angle_X_rad')
+    phi_x = maia_d.pads[q].angle_X_rad
     phix_deg = rad_to_deg(phi_x)
 
     # Apply local rotation, accumulation and rotation operators
@@ -129,7 +129,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     mu = rotate(mu, phix_deg)
     t = p.um_per_px / UM_PER_CM
 
-    phi_y = maia_d.maia_data_column_from_id(q, 'angle_Y_rad')
+    phi_y = maia_d.pads[q].angle_Y_rad
     return mu * t / np.cos(phi_y)
 
 
@@ -262,8 +262,8 @@ def scattering_ma(event_type, p, row, col):
 
     # Get spherical angles (polar theta & azimuthal phi) to detector element
         # Get spherical angles (polar theta & azimuthal phi) to detector element
-    theta = maia_d.maia_data_column_from_id(q, 'theta')
-    phi = maia_d.maia_data_column_from_id(q, 'phi')
+    theta = maia_d.pads[q].theta
+    phi = maia_d.pads[q].phi
 
     compound = p.matrix.cp  # elemental data for matrix compound
 
@@ -310,7 +310,7 @@ def compton_scattered_energy(energy_in, q):
     """
     # Get polar scattering angle (theta) to detector element
     # Get spherical angles (polar theta & azimuthal phi) to detector element
-    theta = maia_d.maia_data_column_from_id(q, 'theta')
+    theta = maia_d.pads[q].theta
 
     # energy_out = 1.0 / (1.0/energy_in +
     # (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
@@ -600,7 +600,7 @@ def channel_fluoro_map(p, q, n_map, angle, el):
         The fluorescence emission map for the requested edge.
 
     """
-    solid_angle = maia_d.maia_data_column_from_id(q, 'omega')
+    solid_angle = maia_d.pads[q].omega
     return (solid_angle / 4 / np.pi *
             fluoro_emission_map(p, n_map, angle, el))
 
@@ -629,11 +629,11 @@ def channel_rayleigh_map(p, q, n_map, angle):
         The fluorescence emission map for the requested edge.
 
     """
-    solid_angle = maia_d.maia_data_column_from_id(q, 'omega')
+    solid_angle = maia_d.pads[q].omega
 
     # Get spherical angles (polar theta & azimuthal phi) to detector element
-    theta = maia_d.maia_data_column_from_id(q, 'theta')
-    phi = maia_d.maia_data_column_from_id(q, 'phi')
+    theta = maia_d.pads[q].theta
+    phi = maia_d.pads[q].phi
 
     energy = outgoing_photon_energy('rayleigh', p)
 
