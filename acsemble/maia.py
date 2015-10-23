@@ -67,7 +67,6 @@ class Pad(object):
 
         """
         px, py, pz, width, height = pad_geometry
-        self.pad_centre_xyz = np.array([px, py, pz], dtype=float)
         self.width = width = float(width)
         self.height = height = float(height)
 
@@ -87,9 +86,9 @@ class Pad(object):
         # On the next line, angle is the angle between the unit z-vector and
         # the detector_unit_normal vector.
         self.T = self._get_pad_transform_matrix(detector_centre_mm)
-        self.vertices = self._vertices_from_params(self.T)
-        # Update centre coords to transformed coords
-        px, py, pz = self.pad_centre_xyz = self.vertices[-1, :3]
+        self.vertices = self._vertices_from_params(px, py, pz, self.T)
+        # Store centre coords of transformed pad coords
+        px, py, pz = self.pad_centre_xyz = self.vertices[-1]
 
         # solid angle presented to the coordinate system origin
         self.omega = self.solid_angle()
@@ -106,17 +105,26 @@ class Pad(object):
     def clear_pads():
         Pad.ids = set()
 
-    def _vertices_from_params(self, t):
-        """Returns 3d coords of the four pad corners.
+    def _vertices_from_params(self, cx, cy, cz, t):
+        """Returns 3d coords of the four pad corners and centre:
 
-        Arguments
-        ---------
+        Parameters
+        ----------
+        cx, cy, cz : centre coordinates about which to perform transform
         t : 4 x 4 geometric transform matrix applied to the vertices
+
+        Returns
+        -------
+        5 x 3 array of floats
+            x1, y1, z1
+            x2, y2, z2
+            x3, y3, z3
+            x4, y4, z4
+            cx, cy, cz
 
         """
         w = self.width
         h = self.height
-        cx, cy, cz = self.pad_centre_xyz
         # pad corner coords in the pad coord system whose plane normal is 0,0,1
         vertices = np.transpose(np.array([
             (cx + w / 2.0, cy + h / 2.0, cz, 1),    # corner 1
@@ -125,7 +133,8 @@ class Pad(object):
             (cx - w / 2.0, cy - h / 2.0, cz, 1),    # corner 4
             (cx,           cy,           cz, 1),    # centre
         ]))
-        return np.transpose(np.dot(t, vertices))
+        t = np.dot(t, vertices)[:-1]    # transform and strip superfluous 1's
+        return np.transpose(t)
 
     def _get_pad_transform_matrix(self, detector_centre_mm):
         nhat = [0.0, 0.0, 1.0]
@@ -149,9 +158,10 @@ class Pad(object):
         float
 
         """
-        # non-overlapping triangles have vertex indices = [(0,1,2), (1,2,3)]
-        # so calculate them separately and add them
-        vectors = self.vertices[:4, :3]
+        # Non-overlapping triangles have vertex indices = [(0,1,2), (1,2,3)]
+        # so calculate them separately and add them. The solid angle
+        # calculation assumes the component pad triangles are non-overlapping.
+        vectors = self.vertices[:4]
         norms = np.linalg.norm(vectors, axis=1)
         # unit vectors
         r0, r1, r2, r3 = vectors / norms[np.newaxis].T
@@ -182,12 +192,11 @@ class Pad(object):
         at indices referred to in the triangles list of tuples.
 
         """
-        x, y, z, w_ = self.vertices.T
+        x, y, z = self.vertices.T
         triangles = [(0,1,2), (1,2,3)]
         mlab.triangular_mesh(x, y, z, triangles)
         if show_id:
-            centre_xyz = self.vertices[4].T[:3]
-            cx, cy, cz = centre_xyz + self.pad_unit_normal * 0.1
+            cx, cy, cz = self.pad_centre_xyz + self.pad_unit_normal * 0.1
             # orientation are angles "referenced to the z axis"
             mlab.text3d(cx, cy, cz, str(self.id), scale=0.2,
                         orient_to_camera=True,
@@ -202,6 +211,8 @@ class Maia(object):
     """
     def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):
         """
+        Parameters
+        ----------
         centre_mm : 3-tuple of float
             Detector face centre (x, y, z) coords in mm
         unit_normal: array-like
@@ -225,10 +236,12 @@ class Maia(object):
     def make_pads(self, maia_data, maia_centre_mm, maia_unit_normal):
         """Create pad objects corresponding to maia_data Pandas dataframe
 
-        Arguments:
+        Parameters
+        ----------
         maia_data - Pandas dataframe corresponding to Chris Ryan's csv data
 
-        Returns:
+        Returns
+        -------
         dict of Pad objects
 
         """
@@ -249,12 +262,17 @@ class Maia(object):
     def _rect_solid_angle(self, a, b, d):
         """Return the solid angle of a rectangle with one corner at the origin.
 
-        Arguments:
-        a - width of detector element
-        b - height of detector element
-        d - distance to plane of detector
+        Parameters
+        ----------
+        a : float
+            width of detector element
+        b : float
+            height of detector element
+        d : float
+            distance to plane of detector
 
-        Returns:
+        Returns
+        -------
         solid angle (sr)
 
         """
@@ -279,14 +297,16 @@ class Maia(object):
         Note 2 at http://www.mpia-hd.mpg.de/~mathar/public
         http://www.mpia-hd.mpg.de/~mathar/public/mathar20051002.pdf
 
-        Arguments:
+        Parameters
+        ----------
         A - x-coord of detector element corner closest to the origin
         B - y-coord of detector element corner closest to the origin
         a - width of detector element
         b - height of detector element
         d - distance to plane of detector
 
-        Returns:
+        Returns
+        -------
         solid angle (sr)
 
         """
@@ -306,7 +326,8 @@ class Maia(object):
         """Returns a 20x20 map of the detector with the specified function
         populating the map.
 
-        Arguments:
+        Parameters
+        ----------
         func - A function evaluated for each self.maia_data row and column entry
             Examples:
             lambda : np.log(self.maia_data['width'])    # log width of element
