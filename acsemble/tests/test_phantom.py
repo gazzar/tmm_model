@@ -1,6 +1,7 @@
 import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
+import config
 import unittest
 from phantom import Phantom2d
 import numpy as np

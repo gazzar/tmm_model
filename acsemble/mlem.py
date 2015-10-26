@@ -12,13 +12,21 @@ My advice for learning about MLEM is to look at two books:
 
 from __future__ import print_function
 
+import sys, os
+
+# Set environ so that matplotlib uses v2 interface to Qt, because we are
+# using mayavi's mlab interface in maia.py
+os.environ.update(
+    {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
+)
+
+import config           # keep this near the top of the imports
 import numpy as np
 import scipy as sp
 from scipy import stats
 import matplotlib.pyplot as plt
 import imageio
 import projection
-import config
 import data_helpers
 
 
@@ -292,7 +300,8 @@ if __name__ == '__main__':
         um_per_px=UM_PER_PX,
         energy=ENERGY_KEV,
     )
-    maia_d = Maia()
+    # maia_d = Maia()
+    maia_d = projection.maia_d
     q = maia_d.channel(7, 7).index[0]
     # angles = np.linspace(0, 180, np.pi * p.shape[0], endpoint=False)
     angles = np.linspace(0, 360, np.pi * p.rows, endpoint=False)

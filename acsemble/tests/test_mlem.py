@@ -4,12 +4,16 @@ sys.path = [
             os.path.join(PATH_HERE, '..'),
             os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
            ] + sys.path
+import config
+# os.environ.update(
+#     {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
+# )
+
 import unittest
 import phantom
 import mlem
 import numpy as np
 import maia
-import config
 
 
 """ The following pattern is designed to match
@@ -42,6 +46,7 @@ class DensityFromFluoroTests(unittest.TestCase):
             um_per_px=UM_PER_PX,
             energy=ENERGY_KEV,
         )
+        maia.Pad.clear_pads()
         maia_d = maia.Maia()
         self.q = maia_d.channel(7, 7).index[0]
         self.el = ELEMENT

@@ -5,6 +5,7 @@ os.environ.update(
     {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
 )
 
+import config           # keep this near the top of the imports
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -78,7 +79,7 @@ class Pad(object):
         # Verify that we haven't allocated this id previously
         ids_len = len(Pad.ids)
         Pad.ids.add(id)
-        assert len(Pad.ids) == ids_len + 1
+        assert len(Pad.ids) == ids_len + 1, ids_len
 
         self.id = id
         self.area_mm2 = width * height
@@ -205,8 +206,27 @@ class Pad(object):
             )
 
 
-class Maia(object):
+class Singleton(object):
+    """From Brian Bruggeman's answer here
+    http://stackoverflow.com/questions/31875/is-there-a-simple-elegant-way-to
+    -define-singletons-in-python
+
+    """
+    def __new__(cls, *args, **kwds):
+        it = cls.__dict__.get("__it__")
+        if it is not None:
+            return it
+        cls.__it__ = it = object.__new__(cls)
+        it.init(*args, **kwds)
+        return it
+    def init(self, *args, **kwds):
+        pass
+
+
+# class Maia(object):
+class Maia(Singleton):
     """Represents the detector geometry and provides visualisation routines.
+    We want this to be a proper singleton class.
 
     """
     def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):

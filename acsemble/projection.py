@@ -32,7 +32,7 @@ J_PER_KEV = 1e3 * sc.eV
 deg_to_rad = lambda x: x / 180 * pi
 rad_to_deg = lambda x: x * 180 / pi
 
-maia_d = Maia()  # Maia detector object singleton
+maia_d = Maia()  # Maia detector object (should be a singleton)
 
 
 def absorption_sinogram(p, anglelist):

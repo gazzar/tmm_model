@@ -1,6 +1,7 @@
 import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
+import config           # keep this near the top of the imports
 import unittest
 from maia import Maia, Pad
 import warnings
@@ -31,6 +32,7 @@ class CorrectLoadTests(unittest.TestCase):
 
 class ChannelSelectionTests(unittest.TestCase):
     def setUp(self):
+        Pad.clear_pads()
         self.det = Maia()
 
     def test_quadrant_selection(self):

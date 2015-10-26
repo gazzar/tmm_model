@@ -5,6 +5,11 @@ from appdirs import AppDirs
 import textwrap
 import logging
 
+# Set environ so that matplotlib uses v2 interface to Qt, because we are
+# using mayavi's mlab interface in maia.py
+os.environ.update(
+    {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
+)
 
 def update(args):
     globals().update(args)
