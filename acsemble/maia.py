@@ -138,16 +138,18 @@ class Pad(object):
         return np.transpose(t)
 
     def _get_pad_transform_matrix(self, detector_centre_mm):
-        nhat = [0.0, 0.0, 1.0]
+        nhat = np.array([0.0, 0.0, 1.0])
 
-        if np.allclose(nhat, self.pad_unit_normal):
-            R1 = np.eye(4)
+        angle = tx.angle_between_vectors(nhat, self.pad_unit_normal)
+        if (np.allclose(nhat, self.pad_unit_normal) or
+            np.allclose(-nhat, self.pad_unit_normal)):
+            # vectors are parallel or antiparallel
+            direction = np.array([1.0, 0.0, 0.0])
         else:
-            angle = tx.angle_between_vectors(nhat, self.pad_unit_normal)
             direction = np.cross(nhat, self.pad_unit_normal)
-            R1 = tx.rotation_matrix(angle, direction)
+        R1 = tx.rotation_matrix(angle, direction)
         T1 = tx.translation_matrix(detector_centre_mm)
-        T = tx.concatenate_matrices(R1, T1)
+        T = tx.concatenate_matrices(T1, R1)
         return T
 
     def solid_angle(self):
@@ -459,6 +461,9 @@ class Maia(Singleton):
 
 
 if __name__ == '__main__':
-    det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
+    # det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
+    det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))  # Detector instance
+    # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))  # Detector
+    # instance
     det.show3d(show_id=True)
     mlab.show()
