@@ -231,29 +231,30 @@ class Maia(Singleton):
     We want this to be a proper singleton class.
 
     """
-    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):
+    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1),
+                 path=MAIA_DATA):
         """
         Parameters
         ----------
         centre_mm : 3-tuple of float
             Detector face centre (x, y, z) coords in mm
-        unit_normal: array-like
+        unit_normal : array-like
             Unit vector perpendicular to detector face
+        path : str
+            Path to csv file containing detector pad data in Chris Ryan's Maia
+            data csv format
 
         """
         assert len(centre_mm) == 3
         assert len(unit_normal) == 3
 
         # Read Chris Ryan's detector data
-        self.maia_data = pd.read_csv(MAIA_DATA, index_col='Data',
+        self.maia_data = pd.read_csv(path, index_col='Data',
                                      skipinitialspace=True, header=12)
         self.unit_normal = (np.array(unit_normal, dtype=float) /
                                 np.linalg.norm(unit_normal))
         self.centre_mm = centre_mm
         self.pads = self.make_pads(self.maia_data, centre_mm, unit_normal)
-        self.rows = 20
-        self.cols = 20
-        self.shape = (self.rows, self.cols)
 
     def make_pads(self, maia_data, maia_centre_mm, maia_unit_normal):
         """Create pad objects corresponding to maia_data Pandas dataframe
@@ -343,27 +344,6 @@ class Maia(Singleton):
 
     # Create a vectorised version
     v_getOmega = np.vectorize(_get_solid_angle, excluded=['self', 'd'])
-
-    def make_map(self, func, fill_value=0.0):
-        """Returns a 20x20 map of the detector with the specified function
-        populating the map.
-
-        Parameters
-        ----------
-        func - A function evaluated for each self.maia_data row and column entry
-            Examples:
-            lambda : np.log(self.maia_data['width'])    # log width of element
-            lambda : self.maia_data['width'] * self.maia_data['height'] # area
-        fill_value - value to initialise the map to (default 0.0)
-
-        Returns:
-        20x20 numpy float32 array
-
-        """
-        map2d = np.zeros((self.rows, self.cols)) + fill_value
-        map2d[self.maia_data.Row,
-              self.maia_data.Column] = func()
-        return map2d
 
     def channel(self, row, col):
         """Return Dataframe for detector element at row, col index
@@ -461,9 +441,13 @@ class Maia(Singleton):
 
 
 if __name__ == '__main__':
+    MAIA_SINGLE_PAD_DATA = os.path.join(PATH_HERE, 'data',
+                                        'pseudo_maia_as_one_square_pad.csv')
     # det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
-    det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))  # Detector instance
-    # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))  # Detector
-    # instance
+    # det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))
+    # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))
+    det = Maia(centre_mm=(0,0,-10), unit_normal=(0,0,1),
+               path=MAIA_SINGLE_PAD_DATA)
+
     det.show3d(show_id=True)
     mlab.show()

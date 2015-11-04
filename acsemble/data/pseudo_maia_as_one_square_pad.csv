@@ -1,0 +1,14 @@
+"# This file handmade by GR"
+# Skip line; the acsemble detector reader skips the first 12 lines
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# Skip line
+# ID, X,Y offsets from centre (mm), Z offset from planar (mm), Width, Height (mm), Tilt (degrees), bad (0=good 1=poor 2=dead), FWHM (eV), Hermes, Quadrant, Radial, Column, Row
+Data, X, Y, Z, width, height, tilt, bad, FWHM, Hermes, Quadrant, Radial, Column, Row
+1,0.0,0.0,0,20.0,20.0,0,0,0,1,1,0,0,0
