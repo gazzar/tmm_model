@@ -1,3 +1,4 @@
+---
 verbose: True
 show_progress: False
 show_images: True
@@ -11,3 +12,13 @@ no_out_absorption: False
 backprojector: 'fbp'    # one of 'fbp', 'sart_no_prior'
 
 anglesfile: 'angles.txt'
+
+#---
+#Uncomment this section to use the Maia detector
+#detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Maia_384C.csv'
+#detector_pads: [341]    # 7, 7
+#---
+#Uncomment this section to use a single square pad
+detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\pseudo_maia_as_one_square_pad.csv'
+detector_pads: [1]
+#---

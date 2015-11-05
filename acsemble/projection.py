@@ -732,7 +732,7 @@ def project(p, event_type):
                   'c': 'compton'}[event_type]
 
     anglelist = np.loadtxt(config.anglesfile)
-    q = int(maia_d.channel(7, 7).index[0])  # TODO: remove hard-coded channel
+    q = config.detector_pads[0]
     if event_type == 'absorption':
         im = absorption_sinogram(p, anglelist)
         s = write_sinogram(im, p, event_type)
@@ -772,7 +772,8 @@ if __name__ == '__main__':
     anglelist = np.loadtxt(config.anglesfile, dtype=int)
     # sinogram = absorption_sinogram(p, anglelist, el, show_progress=True)
     # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
-    q = int(maia_d.channel(7, 7).index[0])
+
+    q = config.detector_pads[0]
     sinogram = project_sinogram('fluoro', p, q, anglelist, el)
 
     # np.save('sino'+el, sinogram)

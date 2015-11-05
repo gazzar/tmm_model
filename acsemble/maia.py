@@ -441,13 +441,17 @@ class Maia(Singleton):
 
 
 if __name__ == '__main__':
-    MAIA_SINGLE_PAD_DATA = os.path.join(PATH_HERE, 'data',
-                                        'pseudo_maia_as_one_square_pad.csv')
+    config.parse()  # read config file settings
+
+    # MAIA_SINGLE_PAD_DATA = os.path.join(PATH_HERE, 'data',
+    #                                     'pseudo_maia_as_one_square_pad.csv')
+
     # det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
     # det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))
     # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))
+
     det = Maia(centre_mm=(0,0,-10), unit_normal=(0,0,1),
-               path=MAIA_SINGLE_PAD_DATA)
+               path=config.detector_csv)
 
     det.show3d(show_id=True)
     mlab.show()
