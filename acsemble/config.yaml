@@ -13,6 +13,13 @@ backprojector: 'fbp'    # one of 'fbp', 'sart_no_prior'
 
 anglesfile: 'angles.txt'
 
+energy_keV: 15.6
+
+# input model
+map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom2-*.tiff'
+map_elements: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom2.yaml'
+map_width_um: 2000.0
+
 #---
 #Uncomment this section to use the Maia detector
 #detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Maia_384C.csv'

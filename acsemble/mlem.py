@@ -232,20 +232,8 @@ if __name__ == '__main__':
     from maia import Maia
     from skimage.transform import iradon, iradon_sart
     import os
-
-    '''
-    def projector(x, angles=None):
-        """
-        skimage's radon transform
-
-        """
-        # x = filters.gaussian_filter(x, 1)
-        x[circular_mask] = 0    # Must be identically zero to use the
-                                # circle=True skimage radon kwarg
-        y = radon(x, theta=angles, circle=True)
-        y *= conversion_factor_for_el
-        return y
-    '''
+    import glob
+    import helpers
 
     def projector_model(x, angles=None):
         el = mlem.el
@@ -282,27 +270,31 @@ if __name__ == '__main__':
         return y
 
     PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-    ELEMENT = 'Ni'
-    MAP_PATTERN = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom2-*.tiff')
-    YAMLFILE = os.path.join(PATH_HERE, 'data', 'Ni_test_phantom2.yaml')
     UM_PER_CM = 1e4
-    # WIDTH_UM = 100.0
-    WIDTH_UM = 2000.0
-    WIDTH_PX = 100
-    UM_PER_PX = WIDTH_UM / WIDTH_PX
-    ENERGY_KEV = 15.6
+    ELEMENT = 'Ni'
 
     config.parse()  # read config file settings
 
+    yamlfile = config.map_elements
+    map_pattern = config.map_pattern
+    map_width_um = config.map_width_um
+    filenames = helpers.match_pattern(map_pattern, glob.glob(map_pattern))
+    im = helpers.read_tiff32(filenames[0][0])
+    assert im.shape[0] == im.shape[1]
+    width_px = im.shape[1]
+
+    um_per_px = map_width_um / width_px
+    energy_keV = config.energy_keV
+
     p = phantom.Phantom2d(
-        filename=MAP_PATTERN,
-        yamlfile=YAMLFILE,
-        um_per_px=UM_PER_PX,
-        energy=ENERGY_KEV,
+        filename=map_pattern,
+        yamlfile=yamlfile,
+        um_per_px=um_per_px,
+        energy=energy_keV,
     )
     # maia_d = Maia()
     maia_d = projection.maia_d
-    q = maia_d.channel(7, 7).index[0]
+    q = config.detector_pads[0]
     # angles = np.linspace(0, 180, np.pi * p.shape[0], endpoint=False)
     angles = np.linspace(0, 360, np.pi * p.rows, endpoint=False)
 
@@ -324,8 +316,8 @@ if __name__ == '__main__':
     # Create a container object for the input data
     sinograms = phantom.Phantom2d(
         shape=im.shape,
-        um_per_px=UM_PER_PX,
-        energy=ENERGY_KEV,
+        um_per_px=um_per_px,
+        energy=energy_keV,
     )
     # Substitute the absorption (CT) sinogram for the matrix.
     sinograms.insert_map('matrix', im)
