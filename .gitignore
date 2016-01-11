@@ -4,6 +4,7 @@
 .project
 .pydevproject
 *.tiff
+*.tif
 ipynb/start_ipynb_server.bat
 *.ipynb
 *.png
