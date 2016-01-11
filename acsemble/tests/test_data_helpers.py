@@ -1,7 +1,10 @@
 import sys, os
 
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
+sys.path = [
+            os.path.join(PATH_HERE, '..'),
+            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
+           ] + sys.path
 import config
 import unittest
 import data_helpers
@@ -27,6 +30,6 @@ class MatrixPropertiesTests(unittest.TestCase):
         matches = helpers.match_pattern('a*z', ['abc'])
         self.assertSequenceEqual(matches, [])
 
-if __name__ == '__main__':
-    import nose
-    nose.main()
+if __name__ == "__main__":
+    from numpy.testing import run_module_suite
+    run_module_suite()

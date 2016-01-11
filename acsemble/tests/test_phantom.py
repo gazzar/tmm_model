@@ -1,6 +1,9 @@
 import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
+sys.path = [
+            os.path.join(PATH_HERE, '..'),
+            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
+           ] + sys.path
 import config
 import unittest
 from phantom import Phantom2d
@@ -50,7 +53,7 @@ class YamlFileSanityTests(unittest.TestCase):
             self.assertAlmostEqual(sum(compound[1].values()), 1.0)
 
 
-
-if __name__ == '__main__':
-    import nose
-    nose.main()
+if __name__ == "__main__":
+    from numpy.testing import run_module_suite
+    run_module_suite()
+()

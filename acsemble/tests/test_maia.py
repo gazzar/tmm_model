@@ -1,6 +1,9 @@
 import sys, os
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
+sys.path = [
+            os.path.join(PATH_HERE, '..'),
+            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
+           ] + sys.path
 import config           # keep this near the top of the imports
 import unittest
 from maia import Maia, Pad
@@ -227,6 +230,6 @@ class SolidAngleTests(unittest.TestCase):
         """
         Pad.clear_pads()
 
-if __name__ == '__main__':
-    import nose
-    nose.main()
+if __name__ == "__main__":
+    from numpy.testing import run_module_suite
+    run_module_suite()
