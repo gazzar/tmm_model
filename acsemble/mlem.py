@@ -231,6 +231,7 @@ if __name__ == '__main__':
     import phantom
     from maia import Maia
     from skimage.transform import iradon, iradon_sart
+    import iradons
     import os
     import glob
     import helpers
@@ -260,12 +261,7 @@ if __name__ == '__main__':
         # which needs to be rescaled to units of [q]/cm.
         x *= UM_PER_CM/p.um_per_px
 
-        # On the next line, the filter=None selection is *very* important
-        # as using the ramp filter causes the scheme to diverge!
-        if config.backprojector == 'fbp':
-            y = iradon(x, theta=angles, circle=True, filter=None)
-        elif config.backprojector == 'sart_no_prior':
-            y = iradon_sart(x, theta=angles)
+        y = iradons.iradon(x, angles)
         y[circular_mask] = 0
         return y
 

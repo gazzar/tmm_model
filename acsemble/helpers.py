@@ -53,12 +53,22 @@ def read_tiff32(filename):
     return im
 
 
-def zero_outside_circle(im):
+def zero_outside_circle(im, symmetric=True, tolerance=0.0):
     """Return a copy of a square image with zeroed values outside an imaginary
     inscribed circle that touches all four sides.
 
+    Parameters
+    ----------
+    im - 2d ndarray
+        image to mask
+    symmetric - Boolean
+        If True, use the symmetric mask, else use the quick mask
+    tolerance - Float
+        Positive number of pixels by which mask circle is expanded
+
     Returns
     -------
+    image with region outside inscribed circle zeroed
 
     """
     im = im.copy()
@@ -66,8 +76,13 @@ def zero_outside_circle(im):
     assert rows==cols
     side = rows
 
-    mask = np.hypot(*np.ogrid[-side/2:side/2, -side/2:side/2])
-    im[mask > side/2] = 0.0
+    if symmetric:
+        s =  (side - 1) / 2.
+        mask = np.hypot(*np.ogrid[-s:s + 1, -s:s + 1]) > s + tolerance + 1
+        im[mask] = 0.0
+    else:
+        mask = np.hypot(*np.ogrid[-side/2:side/2, -side/2:side/2]) > side/2 + tolerance
+        im[mask] = 0.0
     return im
 
 
@@ -113,10 +128,11 @@ def rotate(im, angle):
     """
     assert issubclass(im.dtype.type, np.floating)
 
-    scale = max(abs(im.min()), im.max())
-    mode = 'nearest'    # about 17 ms for a 500x500 array
+    # scale = max(abs(im.min()), im.max())
+    # mode = 'nearest'    # about 17 ms for a 500x500 array
     # mode = 'constant'     # about 13 ms for a 500x500 array
-    return st.rotate(im/scale, angle, mode=mode) * scale
+    # return st.rotate(im/scale, angle, mode=mode) * scale
+    return st.rotate(im, angle, preserve_range=True)
 
 
 def match_pattern(pattern, s):
