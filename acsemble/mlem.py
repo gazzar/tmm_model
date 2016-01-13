@@ -77,7 +77,7 @@ class Mlem(object):
             self.g = g      # Save this for diagnostic purposes
             self.imsave_g()
             im = self.backproject(g, angles=self.angles)
-            imageio.imsave('mlem_d_%03d.tif' % self.i, im.astype(np.float32))
+            self.imsave_d(im)
         # form parenthesised term (g_j / g) from (*)
         r = self.g_j / g
 
@@ -119,11 +119,18 @@ class Mlem(object):
             )
         )
 
-    def imsave_f(self, name_pattern='mlem_f_%03d.tif'):
-        imageio.imsave(name_pattern % self.i, self.f.astype(np.float32))
+    def imsave_dfg(self, pattern, im):
+        filename = os.path.join(config.mlem_im_path, pattern % self.i)
+        imageio.imsave(filename, im.astype(np.float32))
 
-    def imsave_g(self, name_pattern='mlem_g_%03d.tif'):
-        imageio.imsave(name_pattern % self.i, self.g.astype(np.float32))
+    def imsave_d(self, im):
+        self.imsave_dfg('mlem_d_%03d.tif', im)
+
+    def imsave_f(self):
+        self.imsave_dfg('mlem_f_%03d.tif', self.f)
+
+    def imsave_g(self):
+        self.imsave_dfg('mlem_g_%03d.tif', self.g)
 
 
 def noisify(im, frac=0.1):
@@ -339,6 +346,6 @@ if __name__ == '__main__':
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
     # mlem.imsave_f()
-    for im in range(50):
+    for im in range(1001):
         mlem.iterate()
     # mlem.imsave_f()
