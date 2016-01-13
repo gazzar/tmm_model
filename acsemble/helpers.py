@@ -126,13 +126,20 @@ def rotate(im, angle):
     -------
 
     """
+    import scipy.ndimage as sn
+
     assert issubclass(im.dtype.type, np.floating)
 
     # scale = max(abs(im.min()), im.max())
     # mode = 'nearest'    # about 17 ms for a 500x500 array
     # mode = 'constant'     # about 13 ms for a 500x500 array
     # return st.rotate(im/scale, angle, mode=mode) * scale
-    return st.rotate(im, angle, preserve_range=True)
+    # return st.rotate(im, angle, preserve_range=True)
+    # return sn.rotate(im, angle, reshape=False)
+    # return sn.rotate(im, angle, order=1, prefilter=False, reshape=False)
+    # return sn.rotate(im, angle, order=5, reshape=False)
+    # return st.rotate(im, angle, center=np.array(im.shape)/2.0-0.5, preserve_range=True)
+    return st.rotate(im, angle, center=np.array(im.shape)//2, preserve_range=True)
 
 
 def match_pattern(pattern, s):
@@ -145,7 +152,7 @@ def match_pattern(pattern, s):
 
     >>> match_pattern('a*z', ['abc'])
     returns
-    [('abz', 'b')]
+    []
 
     Parameters
     ----------
@@ -177,3 +184,24 @@ def match_pattern(pattern, s):
 
     return matches
 
+
+def mse(im1, im2, mask=None):
+    """Returns MSE of masked regions of im1 and im2.
+
+    Parameters
+    ----------
+    im1, im2 : ndarray of float
+        images to compare using MSE metric
+    mask : ndarray of boolean
+        boolean mask array same shape as im1 and im2
+
+    Returns
+    -------
+    float
+
+    """
+    assert im1.shape == im2.shape
+    if mask is None:
+        mask = np.ones(im1.shape, dtype=np.bool)
+    a_diff = im1[mask] - im2[mask]
+    return np.dot(a_diff, a_diff)/a_diff.size

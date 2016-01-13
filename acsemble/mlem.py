@@ -28,7 +28,13 @@ import matplotlib.pyplot as plt
 import imageio
 import projection
 import data_helpers
+import helpers
+import logging
 
+
+config.parse()  # read config file settings
+logging.basicConfig(filename=config.logger_path, level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 UM_PER_CM = 1e4
 
@@ -97,6 +103,10 @@ class Mlem(object):
         else:
             self.stats()
 
+        if config.save_mse:
+            mse = helpers.mse(self.f, self.reference_mse_image)
+            logger.info('mse {:04}: {}'.format(self.i, mse))
+
         self.i += 1
 
     def _imshow(self, im, show=True):
@@ -131,6 +141,9 @@ class Mlem(object):
 
     def imsave_g(self):
         self.imsave_dfg('mlem_g_%03d.tif', self.g)
+
+    def set_reference_mse_image(self, im):
+        self.reference_mse_image = im
 
 
 def noisify(im, frac=0.1):
@@ -276,8 +289,6 @@ if __name__ == '__main__':
     UM_PER_CM = 1e4
     ELEMENT = 'Ni'
 
-    config.parse()  # read config file settings
-
     yamlfile = config.map_elements
     map_pattern = config.map_pattern
     map_width_um = config.map_width_um
@@ -345,6 +356,10 @@ if __name__ == '__main__':
     mlem = Mlem(p, ELEMENT, projector_model, backprojector, g_j, angles=angles)
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
+    if config.save_mse:
+        ni_ref = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-Ni.tiff'
+        im = imageio.imread(ni_ref)
+        mlem.set_reference_mse_image(im)
     # mlem.imsave_f()
     for im in range(1001):
         mlem.iterate()

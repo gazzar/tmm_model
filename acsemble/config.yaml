@@ -18,7 +18,11 @@ skimage_iradon_circle: True
 skimage_iradon_filter: null
 backprojector: 'fbp'    # one of 'fbp', 'sart_no_prior'
 
+logger_path: 'C:\temp\mlem_ims\log.log'
+logger_level: logging.INFO
 mlem_im_path: 'C:\temp\mlem_ims'
+save_mse: True
+
 xlict_recon_mpi_corm: 0.0
 xlict_force_cpu: 0
 xlict_recon_mpi_exe: 'R:\Science\XFM\GaryRuben\software_to_keep\XLICTReconMPI\XLICTReconMPI.exe'
