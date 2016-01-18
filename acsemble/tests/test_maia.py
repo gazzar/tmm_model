@@ -223,6 +223,108 @@ class SolidAngleTests(unittest.TestCase):
         sa2 = self.det._get_solid_angle(B, A, a, b, self.d_mm)
         self.assertFalse(np.allclose(sa1, sa2))
 
+    def test_sa_rect5(self):
+        A, B = 0.0, 0.0
+        a1, b1 = 2.0, 1.0
+        a2, b2 = 2.0, -1.0
+        a3, b3 = -2.0, 1.0
+        a4, b4 = -2.0, -1.0
+        # get solid angles of rectangles, none of which cross the origin
+        sa1 = self.det._get_solid_angle(A, B, a1, b1, self.d_mm)
+        sa2 = self.det._get_solid_angle(A, B, a2, b2, self.d_mm)
+        sa3 = self.det._get_solid_angle(A, B, a3, b3, self.d_mm)
+        sa4 = self.det._get_solid_angle(A, B, a4, b4, self.d_mm)
+
+        # get solid angle of a corresponding rectangle crossing the origin
+        pad_geometry = (0, 0, 0, 4.0, 2.0)  # x,y,z,w,h
+        p = Pad(id=384, pad_geometry=pad_geometry,
+                detector_centre_mm=[0, 0, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa5 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1+sa2+sa3+sa4, sa5))
+
+    def test_sa_rect6(self):
+        A, B = 0.0, 0.0
+        a1, b1 = 1.0, 1.0
+        # get solid angles of rectangles, none of which cross the origin
+        sa1 = self.det._get_solid_angle(A, B, a1, b1, self.d_mm)
+
+        # get solid angle of a corresponding rectangle crossing the origin
+        pad_geometry = (0, 0, 0, 1.0, 1.0)  # x,y,z,w,h
+        p = Pad(id=384, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.5, 0.5, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa5 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1, sa5))
+
+    def test_sa_rect7(self):
+        # get solid angle of a rectangle
+        pad_geometry = (0.5, 0.5, 0, 1.0, 1.0)  # x,y,z,w,h
+        p = Pad(id=385, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.0, 0.0, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa1 = p.solid_angle()
+
+        # get solid angle of a corresponding rectangle oriented towards the same
+        # sphere centre
+        p = Pad(id=386, pad_geometry=pad_geometry,
+                detector_centre_mm=[self.d_mm, 0.0, 0.0],
+                detector_unit_normal=[1, 0, 0])
+        sa2 = p.solid_angle()
+        self.assertTrue(np.allclose(sa1, sa2))
+
+        # get solid angle of a corresponding rectangle oriented towards the same
+        # sphere centre
+        p = Pad(id=387, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.0, 0.0, -self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa3 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1, sa3))
+
+    def test_sa_rect8(self):
+        # get solid angle of a rectangle
+        pad_geometry = (0, 0, 0, 2.0, 2.0)  # x,y,z,w,h
+        p = Pad(id=384, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.0, 0.5, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa1 = p.solid_angle()
+
+        # get solid angle of a corresponding rectangle oriented towards the same
+        # sphere centre
+        p = Pad(id=385, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.5, 0.0, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa2 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1, sa2))
+
+    def test_sa_rect9(self):
+        A, B = 0.0, 0.0
+        a1, b1 = 1.0, 1.0
+        # get solid angles of rectangles, none of which cross the origin
+        sa1 = self.det._get_solid_angle(A, B, a1, b1, self.d_mm)
+
+        # get solid angle of a corresponding rectangle crossing the origin
+        pad_geometry = (0.5, 0.5, 0, 1.0, 1.0)  # x,y,z,w,h
+        p = Pad(id=384, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.0, 0.0, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa2 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1, sa2))
+
+        # get solid angle of a corresponding rectangle crossing the origin
+        pad_geometry = (0.0, 0.0, 0, 1.0, 1.0)  # x,y,z,w,h
+        p = Pad(id=385, pad_geometry=pad_geometry,
+                detector_centre_mm=[0.5, 0.5, self.d_mm],
+                detector_unit_normal=[0, 0, 1])
+        sa3 = p.solid_angle()
+
+        self.assertTrue(np.allclose(sa1, sa3))
+
     def tearDown(self):
         """The Pad class maintains an internal check to ensure pad objects
         aren't replaced. Clear the internal check state.

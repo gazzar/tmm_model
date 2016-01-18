@@ -50,7 +50,6 @@ class DensityFromFluoroTests(unittest.TestCase):
         maia_d = maia.Maia()
         self.q = maia_d.channel(7, 7).index[0]
         self.el = ELEMENT
-        config.parse()  # read config file settings
 
     # See http://stackoverflow.com/questions/16134281/python-mocking-a-method-from-an-imported-module
     # @mock.patch('config.no_out_absorption')

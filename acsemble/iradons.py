@@ -9,8 +9,6 @@ import helpers
 
 UM_PER_CM = 1e4
 
-config.parse()  # read config file settings
-
 
 def sart_n(im, n=1, imr=None, theta=None, **kwargs):
     """Perform n iterations of sart reconstruction

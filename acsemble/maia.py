@@ -231,8 +231,7 @@ class Maia(Singleton):
     We want this to be a proper singleton class.
 
     """
-    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1),
-                 path=MAIA_DATA):
+    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):
         """
         Parameters
         ----------
@@ -248,7 +247,8 @@ class Maia(Singleton):
         assert len(centre_mm) == 3
         assert len(unit_normal) == 3
 
-        # Read Chris Ryan's detector data
+        # Read detector data
+        path = config.detector_csv
         self.maia_data = pd.read_csv(path, index_col='Data',
                                      skipinitialspace=True, header=12)
         self.unit_normal = (np.array(unit_normal, dtype=float) /
@@ -441,8 +441,6 @@ class Maia(Singleton):
 
 
 if __name__ == '__main__':
-    config.parse()  # read config file settings
-
     # MAIA_SINGLE_PAD_DATA = os.path.join(PATH_HERE, 'data',
     #                                     'pseudo_maia_as_one_square_pad.csv')
 

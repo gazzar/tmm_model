@@ -99,3 +99,6 @@ def parse(path=None):
     argument_namespace = parser.parse_args()
     update(vars(argument_namespace))
     set_logger(argument_namespace.verbose)
+
+
+parse()

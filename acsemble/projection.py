@@ -756,8 +756,6 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import phantom
 
-    config.parse()  # read config file settings
-
     BASE = r'R:\Science\XFM\GaryRuben\projects\TMM'
     DATA_DIR = os.path.join(BASE, r'work\20141016')
     os.chdir(DATA_DIR)

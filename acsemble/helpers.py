@@ -200,8 +200,22 @@ def mse(im1, im2, mask=None):
     float
 
     """
+    # assert im1.shape == im2.shape
+    # if mask is None:
+    #     mask = np.ones(im1.shape, dtype=np.bool)
+    # a_diff = im1[mask] - im2[mask]
+    # return np.dot(a_diff, a_diff)/a_diff.size
+
     assert im1.shape == im2.shape
     if mask is None:
-        mask = np.ones(im1.shape, dtype=np.bool)
-    a_diff = im1[mask] - im2[mask]
+        a_diff = im1 - im2
+    else:
+        assert mask.shape == im1.shape
+        a_diff = im1[mask] - im2[mask]
+    a_diff = a_diff.ravel()
     return np.dot(a_diff, a_diff)/a_diff.size
+
+
+def append_to_running_log(filename, text):
+    with open(filename, "a") as f:
+        f.write(text)

@@ -21,7 +21,8 @@ backprojector: 'fbp'    # one of 'fbp', 'sart_no_prior'
 logger_path: 'C:\temp\mlem_ims\log.log'
 logger_level: logging.INFO
 mlem_im_path: 'C:\temp\mlem_ims'
-save_mse: True
+mlem_mse_path: 'C:\temp\mlem_ims\mse.txt'
+mlem_save_mse: True
 
 xlict_recon_mpi_corm: 0.0
 xlict_force_cpu: 0

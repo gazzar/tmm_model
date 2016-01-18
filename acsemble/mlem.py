@@ -32,7 +32,6 @@ import helpers
 import logging
 
 
-config.parse()  # read config file settings
 logging.basicConfig(filename=config.logger_path, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -103,9 +102,10 @@ class Mlem(object):
         else:
             self.stats()
 
-        if config.save_mse:
+        if config.mlem_save_mse:
             mse = helpers.mse(self.f, self.reference_mse_image)
-            logger.info('mse {:04}: {}'.format(self.i, mse))
+            helpers.append_to_running_log(filename=config.mlem_mse_path,
+                                          text='{:04}, {}\n'.format(self.i, mse))
 
         self.i += 1
 
@@ -309,7 +309,6 @@ if __name__ == '__main__':
     # maia_d = Maia()
     maia_d = projection.maia_d
     q = config.detector_pads[0]
-    # angles = np.linspace(0, 180, np.pi * p.shape[0], endpoint=False)
     angles = np.linspace(0, 360, np.pi * p.rows, endpoint=False)
 
     # If/when we have an experimentally acquired absorption sinogram, we need
@@ -321,8 +320,7 @@ if __name__ == '__main__':
 
     # We do, however, need to convert fluorescence to equivalent mass for this
     # case:
-    conversion_factor_for_el = density_from_fluorescence_for_el(p, q,
-                                                                el=ELEMENT)
+    conversion_factor_for_el = density_from_fluorescence_for_el(p, q, el=ELEMENT)
 
     # Create the "input data" i.e. the simulated-experimentally-acquired
     # sinograms
@@ -347,8 +345,7 @@ if __name__ == '__main__':
     #########################
     ## OK, we're set up now
 
-    # Make a circular mask to allow use of skimage's radon transform with
-    # circle=True
+    # Make a circular mask to allow use of skimage's radon transform with circle=True
     s = (p.el_maps['matrix'].shape[1] - 1) / 2.
     circular_mask = np.hypot(*np.ogrid[-s:s + 1, -s:s + 1]) > s - 0.5
 
@@ -356,11 +353,10 @@ if __name__ == '__main__':
     mlem = Mlem(p, ELEMENT, projector_model, backprojector, g_j, angles=angles)
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
-    if config.save_mse:
+    if config.mlem_save_mse:
         ni_ref = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-Ni.tiff'
         im = imageio.imread(ni_ref)
         mlem.set_reference_mse_image(im)
-    # mlem.imsave_f()
+
     for im in range(1001):
         mlem.iterate()
-    # mlem.imsave_f()

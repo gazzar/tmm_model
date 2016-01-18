@@ -10,8 +10,6 @@ import numpy as np
 import iradons
 
 
-config.parse()  # read config file settings
-
 class IRadonTests(unittest.TestCase):
     def test_skimage_iradon(self):
         p = np.array([[1.0]])
