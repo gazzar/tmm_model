@@ -55,8 +55,6 @@ def iradon(p, angles):
     """
     implementation = config.iradon_implementation
 
-    # p = imageio.imread(r'C:\Users\rub015\Desktop\ricegrain_out\p.tif')
-
     if implementation == 'skimage_iradon':
         im = st.iradon(p, theta=angles,
                     circle=config.skimage_iradon_circle,

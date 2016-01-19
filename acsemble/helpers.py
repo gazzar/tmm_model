@@ -4,9 +4,10 @@ import skimage.transform as st
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
-import warnings
+import config
 import logging
-import glob, fnmatch, re
+import fnmatch, re
+import warnings
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import tifffile
@@ -130,6 +131,13 @@ def rotate(im, angle):
 
     assert issubclass(im.dtype.type, np.floating)
 
+    implementation = config.iradon_implementation
+
+    if implementation == 'skimage_iradon':
+        return st.rotate(im, angle, center=np.array(im.shape)//2, preserve_range=True)
+    elif implementation in ('xlict_recon_mpi_fbp', 'xlict_recon_gridrec'):
+        return st.rotate(im, angle, preserve_range=True)
+
     # scale = max(abs(im.min()), im.max())
     # mode = 'nearest'    # about 17 ms for a 500x500 array
     # mode = 'constant'     # about 13 ms for a 500x500 array
@@ -139,7 +147,6 @@ def rotate(im, angle):
     # return sn.rotate(im, angle, order=1, prefilter=False, reshape=False)
     # return sn.rotate(im, angle, order=5, reshape=False)
     # return st.rotate(im, angle, center=np.array(im.shape)/2.0-0.5, preserve_range=True)
-    return st.rotate(im, angle, center=np.array(im.shape)//2, preserve_range=True)
 
 
 def match_pattern(pattern, s):

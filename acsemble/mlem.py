@@ -105,7 +105,7 @@ class Mlem(object):
         if config.mlem_save_mse:
             mse = helpers.mse(self.f, self.reference_mse_image)
             helpers.append_to_running_log(filename=config.mlem_mse_path,
-                                          text='{:04}, {}\n'.format(self.i, mse))
+                                          text='{:04}\t{}\n'.format(self.i, mse))
 
         self.i += 1
 
@@ -354,7 +354,7 @@ if __name__ == '__main__':
     # mlem = Mlem(projector, backprojector, g_j, angles=angles)
 
     if config.mlem_save_mse:
-        ni_ref = r'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-Ni.tiff'
+        ni_ref = config.map_pattern.replace('*', 'Ni')
         im = imageio.imread(ni_ref)
         mlem.set_reference_mse_image(im)
 
