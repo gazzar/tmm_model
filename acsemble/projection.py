@@ -54,7 +54,7 @@ def absorption_sinogram(p, anglelist):
     """
     sinogram = np.empty((p.cols, len(anglelist)))
     if config.show_progress:
-        pbar = ProgressBar(maxval=len(anglelist)-1).start()
+        pbar = ProgressBar(maxval=max(1, len(anglelist)-1)).start()
     for i, angle in enumerate(anglelist):
         if config.show_progress:
             pbar.update(i)
