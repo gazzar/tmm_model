@@ -136,17 +136,15 @@ def rotate(im, angle):
     if implementation == 'skimage_iradon':
         return st.rotate(im, angle, center=np.array(im.shape)//2, preserve_range=True)
     elif implementation in ('xlict_recon_mpi_fbp', 'xlict_recon_gridrec'):
-        return st.rotate(im, angle, preserve_range=True)
-
-    # scale = max(abs(im.min()), im.max())
-    # mode = 'nearest'    # about 17 ms for a 500x500 array
-    # mode = 'constant'     # about 13 ms for a 500x500 array
-    # return st.rotate(im/scale, angle, mode=mode) * scale
-    # return st.rotate(im, angle, preserve_range=True)
-    # return sn.rotate(im, angle, reshape=False)
-    # return sn.rotate(im, angle, order=1, prefilter=False, reshape=False)
-    # return sn.rotate(im, angle, order=5, reshape=False)
-    # return st.rotate(im, angle, center=np.array(im.shape)/2.0-0.5, preserve_range=True)
+        # Check whether rotation angle is close enough to be able to rotate using a rot90
+        # call. If so, use rot90 instead. I doubt we'll ever do 10000 rotation angles, so
+        # use this to determine the threshold.
+        axes = np.array([0.0, 90.0, 180.0, 270.0, 360.0])
+        aligned_with_axis = abs(angle - axes) < 360./10000  # faster than np.isclose()
+        if np.any(aligned_with_axis):
+            return np.rot90(im, k=np.flatnonzero(aligned_with_axis)[0])
+        else:
+            return st.rotate(im, angle, preserve_range=True)
 
 
 def match_pattern(pattern, s):
