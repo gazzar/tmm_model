@@ -139,7 +139,7 @@ def rotate(im, angle):
         # Check whether rotation angle is close enough to be able to rotate using a rot90
         # call. If so, use rot90 instead. I doubt we'll ever do 10000 rotation angles, so
         # use this to determine the threshold.
-        axes = np.array([0.0, 90.0, 180.0, 270.0, 360.0])
+        axes = np.array([-360.0, -270.0, -180.0, -90.0, 0.0, 90.0, 180.0, 270.0, 360.0])
         aligned_with_axis = abs(angle - axes) < 360./10000  # faster than np.isclose()
         if np.any(aligned_with_axis):
             return np.rot90(im, k=np.flatnonzero(aligned_with_axis)[0])
