@@ -276,16 +276,16 @@ if __name__ == '__main__':
         skimage's fbp-based inverse radon transform
 
         """
-        x /= conversion_factor_for_el
+        im_x = x / conversion_factor_for_el
 
         # TODO: I think I need to do this because I suspect the conversion
         # TODO: factor removes the length unit.
         # Rescale sinogram pixel quantities based on pixel side length.
         # The sinogram is a map of some quantity q per pixel,
         # which needs to be rescaled to units of [q]/cm.
-        x *= UM_PER_CM/p.um_per_px
+        im_x *= UM_PER_CM/p.um_per_px
 
-        y = iradons.iradon(x, angles)
+        y = iradons.iradon(im_x, angles)
         y[circular_mask] = 0
         return y
 
@@ -362,5 +362,5 @@ if __name__ == '__main__':
         im = imageio.imread(ni_ref)
         mlem.set_reference_mse_image(im)
 
-    for im in range(1001):
+    for im in range(101):
         mlem.iterate()
