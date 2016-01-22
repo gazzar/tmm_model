@@ -12,6 +12,8 @@ My advice for learning about MLEM is to look at two books:
 
 from __future__ import print_function
 
+from profilehooks import profile
+
 import sys, os
 
 # Set environ so that matplotlib uses v2 interface to Qt, because we are
@@ -32,7 +34,7 @@ import helpers
 import logging
 
 
-logging.basicConfig(filename=config.logger_path, level=logging.INFO)
+logging.basicConfig(filename=config.logger_path)
 logger = logging.getLogger(__name__)
 
 UM_PER_CM = 1e4
@@ -67,6 +69,7 @@ class Mlem(object):
         assert self.f.shape == self.weighting.shape
         self.weighting.clip(self.epsilon, out=self.weighting)
 
+    @profile
     def iterate(self):
         # From Lalush and Wernick (See [2]);
         # f^\hat <- (f^\hat / |\sum h|) * \sum h * (g_j / g)          ... (*)
@@ -78,9 +81,10 @@ class Mlem(object):
 
         g.clip(min=self.epsilon, out=g)
 
-        if config.show_images:
+        if config.save_g_images:
             self.g = g      # Save this for diagnostic purposes
             self.imsave_g()
+        if config.save_d_images:
             im = self.backproject(g, angles=self.angles)
             self.imsave_d(im)
         # form parenthesised term (g_j / g) from (*)
@@ -93,7 +97,7 @@ class Mlem(object):
         # Normalise the individual pixels in the reconstruction
         self.f *= g_r / self.weighting
 
-        if config.show_images:
+        if config.save_f_images:
             self.imsave_f()
 
         # print some progress output
@@ -272,16 +276,16 @@ if __name__ == '__main__':
         skimage's fbp-based inverse radon transform
 
         """
-        x /= conversion_factor_for_el
+        im_x = x / conversion_factor_for_el
 
         # TODO: I think I need to do this because I suspect the conversion
         # TODO: factor removes the length unit.
         # Rescale sinogram pixel quantities based on pixel side length.
         # The sinogram is a map of some quantity q per pixel,
         # which needs to be rescaled to units of [q]/cm.
-        x *= UM_PER_CM/p.um_per_px
+        im_x *= UM_PER_CM/p.um_per_px
 
-        y = iradons.iradon(x, angles)
+        y = iradons.iradon(im_x, angles)
         y[circular_mask] = 0
         return y
 
@@ -358,5 +362,5 @@ if __name__ == '__main__':
         im = imageio.imread(ni_ref)
         mlem.set_reference_mse_image(im)
 
-    for im in range(1001):
+    for im in range(101):
         mlem.iterate()

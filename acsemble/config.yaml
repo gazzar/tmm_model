@@ -1,7 +1,9 @@
 ---
 verbose: True
-show_progress: False
-show_images: True
+show_progress: True
+save_f_images: True
+save_d_images: False
+save_g_images: False
 make_movie: True
 
 no_in_absorption: False
@@ -9,8 +11,8 @@ no_out_absorption: False
 #~ no_in_absorption: True
 #~ no_out_absorption: True
 
-iradon_implementation: 'skimage_iradon'
-#iradon_implementation: 'xlict_recon_mpi_fbp'
+#iradon_implementation: 'skimage_iradon'
+iradon_implementation: 'xlict_recon_mpi_fbp'
 #~ iradon_implementation: 'xlict_recon_gridrec'
 #~ iradon_implementation: 'skimage_iradon_sart'
 # one of 'skimage_iradon', 'skimage_iradon_sart', 'xlict_recon_mpi_fbp'
@@ -34,16 +36,21 @@ xlict_recon_mpi_fbp_filter: 'none'
 # One of 'ramp', 'shepp-logan', 'cosine', 'hamming', 'hann', 'none'
 
 anglesfile: 'angles.txt'
-
+#
 energy_keV: 15.6
 
 # input model
-map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-*.tiff'
-map_elements: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3.yaml'
-map_width_um: 2000.0
+#map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-*.tiff'
+#map_elements: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3.yaml'
+#map_width_um: 2000.0
 #map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom4-*.tiff'
 #map_elements: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom4.yaml'
 #map_width_um: 1990.0
+
+# 1000x1000px:
+map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom5-*.tiff'
+map_elements: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom5.yaml'
+map_width_um: 2000.0
 
 #---
 #Uncomment this section to use the Maia detector

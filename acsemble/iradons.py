@@ -4,7 +4,7 @@ import os
 import subprocess
 import config
 import imageio
-import glob, fnmatch
+import fnmatch
 import helpers
 
 UM_PER_CM = 1e4
@@ -35,7 +35,7 @@ def sart_n(im, n=1, imr=None, theta=None, **kwargs):
     return imr
 
 
-def iradon(p, angles):
+def iradon(sino, angles):
     """Wrapper for potentially a bunch of different backprojector
     implementations, wrapped with a common call signature. Selection of
     the implementation and specific parameters for individual implementations
@@ -43,7 +43,7 @@ def iradon(p, angles):
 
     Parameters
     ----------
-    p : 2d ndarray of floats
+    sino : 2d ndarray of floats
         sinogram to backproject
     angles : 1d array-like
         sinogram projection angles
@@ -56,20 +56,21 @@ def iradon(p, angles):
     implementation = config.iradon_implementation
 
     if implementation == 'skimage_iradon':
-        im = st.iradon(p, theta=angles,
-                    circle=config.skimage_iradon_circle,
-                    filter=config.skimage_iradon_filter)
+        im = st.iradon(sino, theta=angles,
+                       circle=config.skimage_iradon_circle,
+                       filter=config.skimage_iradon_filter)
 
     elif implementation == 'skimage_iradon_sart':
         # Clip solution to positive values. MLEM requires this.
-        im = st.iradon_sart(p, theta=angles, clip=(1e-6, p.max()*p.shape[0]*p.shape[1]))
+        im = st.iradon_sart(sino, theta=angles,
+                            clip=(1e-6, sino.max()*sino.shape[0]*sino.shape[1]))
 
     elif implementation in ('xlict_recon_mpi_fbp', 'xlict_recon_gridrec'):
-        od = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA     # output directory
-        id = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS     # input directory
+        outdir = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA     # output directory
+        indir = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS     # input directory
         base_filename = 'temp_sino.tif'
 
-        def xtract_exe_string(filename, angles, ps):
+        def xtract_exe_string(filename, indir, outdir, angles, ps):
             assert config.xlict_recon_mpi_fbp_filter in {'ramp', 'shepp-logan', 'cosine',
                                                          'hamming', 'hann', 'none'}
             # lookup dict for reconstruction filter type and filter enable flag
@@ -85,13 +86,13 @@ def iradon(p, angles):
             recon_filter, filter_enable = filter_control[config.xlict_recon_mpi_fbp_filter]
             rm = {'xlict_recon_mpi_fbp':0, 'xlict_recon_gridrec':1}[implementation]
             xtract_options = \
-                r'-id {id} --sino {prg} -od {od} -pfct r_.tif -rmu 1 ' \
+                r'-id {indir} --sino {prg} -od {outdir} -pfct r_.tif -rmu 1 ' \
                 r'-e {e_keV} --recon_method {rm} -fr {recon_filter} ' \
                 r'-as {astep} --recon_filter_enabled {filter_enable} ' \
                 r'-ps {ps} -corm {corm} --force_cpu {force_cpu}'.format(
-                    id = id,
+                    indir = indir,
                     prg = filename,                     # read file name
-                    od = od,
+                    outdir = outdir,
                     e_keV = config.energy_keV,
                     rm = rm,                            # 0 (FBP), 1 (Gridrec)
                     recon_filter = recon_filter,
@@ -103,19 +104,19 @@ def iradon(p, angles):
                 )
             return xtract_options
 
-        p = p.T                             # orient sinogram axes to what X-TRACT expects
+        sino = sino.T                   # orient sinogram axes to what X-TRACT expects
         # write to disk for XTRACT
-        filename = os.path.join(id, base_filename)
-        imageio.imsave(filename, p.astype(np.float32))
+        filename = os.path.join(indir, base_filename)
+        imageio.imsave(filename, sino.astype(np.float32))
 
         # reconstruct (XLI/XTRACT writes the result to disk), then read result from disk
-        xes = xtract_exe_string(base_filename, angles, ps=1)
+        xes = xtract_exe_string(base_filename, indir, outdir, angles, ps=1)
         PATH_XTRACT_EXE = config.xlict_recon_mpi_exe
         with open(os.devnull, 'w') as fnull:
-            retcode_ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
-                                      stdout=fnull, stderr=subprocess.STDOUT)
+            _ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
+                                       stdout=fnull, stderr=subprocess.STDOUT)
 
-        im = imageio.imread(os.path.join(od, 'r_0.tif')).astype(np.float32)
+        im = imageio.imread(os.path.join(outdir, 'r_0.tif')).astype(np.float32)
         # Reorient the reconstruction to match the convention established by other
         # reconstructors here.
         im = np.rot90(im)
@@ -123,9 +124,9 @@ def iradon(p, angles):
         # Apply a hard circular mask to the result, to match the behaviour of skimage
         im = helpers.zero_outside_circle(im)
 
-        # rename any file in the output path named r_0.tif to r_<nnn+1>.tif,
+        # write im to the output path with name r_<nnn+1>.tif,
         # where nnn is the highest number in the existing files
-        files = os.listdir(od)
+        files = os.listdir(outdir)
         if 'r_0.tif' in files:
             matches = sorted(fnmatch.filter(files, 'r_[0-9][0-9][0-9].tif'))
             if not matches:
@@ -134,9 +135,10 @@ def iradon(p, angles):
                 # files exist matching r_nnn.tif; get the highest and add 1
                 nnn = int(matches[-1][2:5])
                 dest = 'r_%03d.tif' % (nnn+1)
-            imageio.imsave(os.path.join(od, dest), im.astype(np.float32))
+            imageio.imsave(os.path.join(outdir, dest), im.astype(np.float32))
 
-    im *= 5e-5  # This scale factor was determined by direct comparison with iradon above
+        im *= 5e-5  # This factor was determined by direct comparison with iradon above
+
     return im
 
 
