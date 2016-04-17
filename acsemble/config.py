@@ -16,7 +16,11 @@ def update(args):
 
 
 def set_logger(verbose):
-    logging.basicConfig(level=logging.INFO, format="%(msg)s")
+    logging.basicConfig(level=logging.INFO,
+                        format="[%(asctime)s] %(filename)s:%(funcName)s:%(lineno)d | %(message)s"
+                        )
+                        #, format="[%(asctime)s][%(levelname)s] %(name)s %(filename)s:%(funcName)s:%(lineno)d | %(message)s"
+                        #, format="%(msg)s")
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 

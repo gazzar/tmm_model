@@ -9,6 +9,7 @@ data structure defined in a yaml file.
 
 from __future__ import print_function
 import os
+import config
 import logging
 import numpy as np
 from imageio import imread
@@ -256,9 +257,14 @@ class Phantom2d(object):
         return comp
 
     def _read_tiffs(self, pattern):
-        """Read all tiff files matching the glob pattern
+        """Read all tiff files matching the glob pattern.
+        Our sinogram assumes the matlab convention, which
+        is sino-x=angles, sino-y=x-projections.
+        If this is not the case, the user can request this code transpose the sinograms on
+        import by setting the mlem_transpose_on_read option in the config file.
         
-        Arguments:
+        Parameters
+        ----------
         pattern - a glob pattern for tiff files, e.g. '*.tiff'
 
         """
@@ -266,10 +272,22 @@ class Phantom2d(object):
 
         for f, el in filenames:
             im = read_tiff32(f)
+            if config.mlem_transpose_on_read:
+                im = im.T
             self.rows, self.cols = im.shape
             self.el_maps[el] = im
 
     def insert_map(self, el, im):
+        """Inserts the specified element (or compound) density map into el_maps.
+
+        Parameters
+        ----------
+        el : str
+            name to use for key
+        im : 2d ndarray of float
+            density map
+
+        """
         rows, cols = im.shape
         assert(self.rows == rows and self.cols == cols)
         assert(el not in self.el_maps)
@@ -287,8 +305,9 @@ class Phantom2d(object):
         If self.matrix_elements is not the empty string, any elements it
         contains will be added to a single map called filename-matrix.tiff
         
-        Arguments:
-        dirname - path to directory to contain elemental tiff maps
+        Parameters
+        ----------
+        dirname : path to directory to contain elemental tiff maps
 
         """
         filename = os.path.basename(self.filename)
@@ -335,12 +354,14 @@ class Phantom2d(object):
     def compound_record(self, compounds, row, col):
         """Return the compound record for the specified row and col.
 
-        Arguments:
-        compounds - The lookup structure containing the compound information.
+        Parameters
+        ----------
+        compounds : The lookup structure containing the compound information.
                  See e.g. golosio_compounds for the dictionary format.
-        row, col - Array indices of the pixel in the phantom.
+        row, col : Array indices of the pixel in the phantom.
 
-        Returns:
+        Returns
+        -------
         compound record for that pixel value.
 
         """
@@ -352,9 +373,9 @@ class Phantom2d(object):
         """Return the density at the specified row and col.
 
         Arguments:
-        compounds - The lookup structure containing the compound information.
+        compounds : The lookup structure containing the compound information.
                  See e.g. golosio_compounds for the dictionary format.
-        row, col - Array indices of the pixel in the phantom
+        row, col : Array indices of the pixel in the phantom
 
         Returns:
         density (g cm^-3)
@@ -372,6 +393,12 @@ class Phantom2d(object):
         if show:
             plt.show()
 
+    def clip_positive(self):
+        """Rewrite all arrays, clipping them to only contain positive values.
+
+        """
+        for el, el_map in self.el_maps.iteritems():
+            el_map.clip(min=0.0, out=el_map)
 
 if __name__ == '__main__':
     # MAP = os.path.join('data', 'golosio_100.png')

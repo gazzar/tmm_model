@@ -25,6 +25,7 @@ from data_helpers import MatrixProperties
 from maia import Maia
 import helpers
 from progressbar import ProgressBar
+import matplotlib.pyplot as plt
 
 
 UM_PER_CM = 1e4
@@ -179,6 +180,17 @@ def project_sinogram(event_type, p, q, anglelist, el=None):
             sinogram[:, i] = e_map.sum(axis=0)
         else:
             sinogram[:, i] = (e_map * np.exp(-c)).sum(axis=0)
+
+        if i == 0 and config.save_projection_images:
+            path = os.path.join(config.mlem_im_path, 'project_%s_map_%03d.tif' % (el, config.i))
+            helpers.write_tiff32(path, p.el_maps[el])
+            path = os.path.join(config.mlem_im_path, 'project_n_map_%03d.tif' % config.i)
+            helpers.write_tiff32(path, n_map)
+            path = os.path.join(config.mlem_im_path, 'project_e_map_%03d.tif' % config.i)
+            helpers.write_tiff32(path, e_map)
+            path = os.path.join(config.mlem_im_path, 'project_c_map_%03d.tif' % config.i)
+            helpers.write_tiff32(path, c)
+
     return sinogram
 
 
@@ -218,7 +230,8 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
 
     # The linear absorption map mu0 = ma_M * mu_M + sum_k ( ma_k * mu_k )
     mu0 = p.matrix.ma(p.energy) * p.el_maps['matrix']
-    if not matrix_only:
+    if not config.absorb_with_matrix_only:
+    # if not matrix_only:
         for el in p.el_maps:
             if el == 'matrix':
                 continue
