@@ -254,6 +254,10 @@ class Phantom2d(object):
         """
         with open(yamlfile) as f:
             comp = yaml.load(f)
+        try:
+            comp = comp['compound']
+        except:
+            pass
         return comp
 
     def _read_tiffs(self, pattern):
