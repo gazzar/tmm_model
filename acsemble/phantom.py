@@ -256,7 +256,7 @@ class Phantom2d(object):
             comp = yaml.load(f)
         try:
             comp = comp['compound']
-        except:
+        except KeyError:
             pass
         return comp
 

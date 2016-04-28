@@ -50,9 +50,15 @@ element: Zn
 
 # input model 200x200px of the simulated test phantom. See readme.txt in
 # R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1:
-map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1\Ni_test_phantom4-*.tiff'
-map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1\Ni_test_phantom4.yaml'
+map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160422_2\Grain_test_phantom1-*.tiff'
+map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160422_1\Grain_test_phantom1.yaml'
 map_width_um: 4000.0
+
+# input model 200x200px of the simulated test phantom. See readme.txt in
+# R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1:
+#map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1\Ni_test_phantom4-*.tiff'
+#map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1\Ni_test_phantom4.yaml'
+#map_width_um: 4000.0
 
 # input model 200x200px:
 #map_pattern: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Ni_test_phantom3-*.tiff'
@@ -76,14 +82,18 @@ slice_thickness_um: 2.0
 # For density_per_compton_count see work/20160222_1/Absorption_from_Ge_sinogram-rescaled_image.ipynb
 #density_per_compton_count: 0.0001038   # matrix density for ricegrain
 
-density_per_compton_count: 4.25e-2      # matrix density for Ni_test_phantom2
+#density_per_compton_count: 4.25e-2      # matrix density for Ni_test_phantom2
+#density_per_compton_count: 15.0e-2      # matrix density for Ni_test_phantom2
+#density_per_compton_count: 7.0e-2      # matrix density for Ni_test_phantom2
+#density_per_compton_count: 0.1      # matrix density for Ni_test_phantom2
+density_per_compton_count: 5.0e-2      # matrix density for Ni_test_phantom2
 
 #---
 #Uncomment this section to use the Maia detector
-#detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Maia_384C.csv'
-#detector_pads: [341]    # 7, 7
+detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\Maia_384C.csv'
+detector_pads: [341]    # 7, 7
 #---
 #Uncomment this section to use a single square pad
-detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\pseudo_maia_as_one_square_pad.csv'
-detector_pads: [1]
+#detector_csv: 'R:\Science\XFM\GaryRuben\git_repos\tmm_model\acsemble\data\pseudo_maia_as_one_square_pad.csv'
+#detector_pads: [1]
 #---
