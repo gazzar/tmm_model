@@ -124,12 +124,20 @@ class Mlem(object):
         if config.save_f_images:
             self.imsave_f()
 
-        if config.mlem_save_mse:
-            mse = helpers.mse(self.f, self.reference_mse_image)
-            helpers.append_to_running_log(filename=config.mlem_mse_path,
-                                          text='{:04}\t{}\n'.format(self.i, mse))
+        if config.mlem_save_similarity_metrics:
+            self._save_similarity_metrics()
 
         self.i += 1
+
+    def _save_similarity_metrics(self):
+        im = self.f
+        im_ref = self.reference_image
+        mse = helpers.mse(im, im_ref)
+        helpers.append_to_running_log(filename=config.mlem_mse_path,
+                                      text='{:04}\t{}\n'.format(self.i, mse))
+        mssim = helpers.mssim(im, im_ref)
+        helpers.append_to_running_log(filename=config.mlem_mssim_path,
+                                      text='{:04}\t{}\n'.format(self.i, mssim))
 
     def _imshow(self, im, show=True):
         plt.figure()
@@ -166,8 +174,8 @@ class Mlem(object):
     def imsave_g(self):
         self.imsave_dfg('mlem_g_%03d.tif', self.g)
 
-    def set_reference_mse_image(self, im):
-        self.reference_mse_image = im
+    def set_reference_image(self, im):
+        self.reference_image = im
 
 
 def noisify(im, frac=0.1):
@@ -441,6 +449,9 @@ if __name__ == '__main__':
     #     assert np.all(el_map >= 0.0)
 
     logger.info('i\tf_sum\tf_min\tf_max\tr_sum\tg_sum\tg_j_sum')
+    im = helpers.read_tiff32(config.mlem_reference_image_path)
+    im = im[::-1]   # temporarily flip the image up-down until I fix this inversion bug.
+    mlem.set_reference_image(im)
 
     for im in range(101):
         config.i = im

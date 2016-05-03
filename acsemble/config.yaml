@@ -23,8 +23,10 @@ backprojector: 'fbp'    # one of 'fbp', 'sart_no_prior'
 logger_path: 'C:\temp\mlem_ims\log.log'
 logger_level: logging.INFO
 mlem_im_path: 'C:\temp\mlem_ims'
+mlem_reference_image_path: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160502_3\Grain_test_phantom1-Zn.tiff'
 mlem_mse_path: 'C:\temp\mlem_ims\mse.txt'
-mlem_save_mse: False
+mlem_mssim_path: 'C:\temp\mlem_ims\mssim.txt'
+mlem_save_similarity_metrics: True
 mlem_transpose_on_read: True
 matrix_blur: False
 absorb_with_matrix_only: True
@@ -50,8 +52,8 @@ element: Zn
 
 # input model 200x200px of the simulated test phantom. See readme.txt in
 # R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1:
-map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160422_2\Grain_test_phantom1-*.tiff'
-map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160422_1\Grain_test_phantom1.yaml'
+map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160502_4\Grain_test_phantom1-*.tiff'
+map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160502_3\Grain_test_phantom1.yaml'
 map_width_um: 4000.0
 
 # input model 200x200px of the simulated test phantom. See readme.txt in

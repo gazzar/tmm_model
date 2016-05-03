@@ -1,6 +1,13 @@
 """General helper functions"""
 
+from __future__ import print_function
 import skimage.transform as st
+try:
+    from skimage.measure import compare_ssim
+    mssim_version = "new"
+except ImportError:
+    from skimage.measure import structural_similarity as compare_ssim
+    mssim_version = "old"
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
@@ -219,6 +226,36 @@ def mse(im1, im2, mask=None):
         a_diff = im1[mask] - im2[mask]
     a_diff = a_diff.ravel()
     return np.dot(a_diff, a_diff)/a_diff.size
+
+
+def mssim(im1, im2):
+    """Return mean structural similarity index of im1 and im2
+    According to Notes in
+    http://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.compare_ssim
+    "To match the implementation of Wang et. al. [R261], set gaussian_weights to True,
+    sigma to 1.5, and use_sample_covariance to False.
+    [R261] Wang, Z., Bovik, A. C., Sheikh, H. R., & Simoncelli, E. P. (2004). Image quality
+           assessment: From error visibility to structural similarity. IEEE Transactions on
+           Image Processing, 13, 600-612.
+           https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf"
+
+    Parameters
+    ----------
+    im1, im2 : 2d arrays of floats
+        images to compare
+
+    Returns
+    -------
+    float value of mssim as per Wang et al.
+
+    """
+    im1 = im1.astype(np.float32)
+    im2 = im2.astype(np.float32)
+    if mssim_version == 'old':
+        mssim_kwargs = {}
+    elif mssim_version == 'new':
+        mssim_kwargs = {'gaussian_weights':True, 'sigma':1.5, 'use_sample_covariance':False}
+    return compare_ssim(im1, im2, **mssim_kwargs)
 
 
 def append_to_running_log(filename, text):
