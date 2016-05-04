@@ -52,8 +52,8 @@ element: Zn
 
 # input model 200x200px of the simulated test phantom. See readme.txt in
 # R:\Science\XFM\GaryRuben\projects\TMM\work\20160405_1:
-map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160502_4\Grain_test_phantom1-*.tiff'
-map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160502_3\Grain_test_phantom1.yaml'
+map_pattern: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160503_1\Grain_test_phantom1-*.tiff'
+map_elements: 'R:\Science\XFM\GaryRuben\projects\TMM\work\20160422_1\Grain_test_phantom1.yaml'
 map_width_um: 4000.0
 
 # input model 200x200px of the simulated test phantom. See readme.txt in
