@@ -39,6 +39,7 @@ xlict_recon_mpi_fbp_PATH_OUTPUT_DATA: 'C:\Users\rub015\Desktop\ricegrain_out'
 xlict_recon_mpi_fbp_filter: 'none'
 #~ xlict_recon_mpi_fbp_filter: 'shepp-logan'
 # One of 'ramp', 'shepp-logan', 'cosine', 'hamming', 'hann', 'none'
+xlict_recon_reference_fbp_filter: 'ramp'
 
 #anglesfile: 'angles.txt'
 angles_compute: True
@@ -48,6 +49,9 @@ angles_max: 360.0
 energy_keV: 14.5
 #energy_keV: 15.6
 element: Zn
+#element: Mn
+sinogram_density_scaling:
+    {Zn: 1.0e-9, Mn: 1.0e-9,}
 #element: Ni
 
 # input model 200x200px of the simulated test phantom. See readme.txt in
