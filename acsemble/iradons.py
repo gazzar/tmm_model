@@ -129,7 +129,7 @@ def iradon_absorption(sino, angles):
     return im
 
 
-def iradon(sino, angles):
+def iradon(sino, angles, filter='none'):
     """Wrapper for potentially a bunch of different backprojector
     implementations, wrapped with a common call signature. Selection of
     the implementation and specific parameters for individual implementations
@@ -141,6 +141,9 @@ def iradon(sino, angles):
         sinogram to backproject
     angles : 1d array-like
         sinogram projection angles
+    filter : str
+        A string that selects the iradon filter type based on those supported by xlict.
+        One of 'ramp', 'shepp-logan', 'cosine', 'hamming', 'hann', 'none'
 
     Returns
     -------
@@ -165,8 +168,8 @@ def iradon(sino, angles):
         base_filename = 'temp_sino.tif'
 
         def xtract_exe_string(filename, indir, outdir, angles, ps):
-            assert config.xlict_recon_mpi_fbp_filter in {'ramp', 'shepp-logan', 'cosine',
-                                                         'hamming', 'hann', 'none'}
+            assert filter in {'ramp', 'shepp-logan', 'cosine',
+                                    'hamming', 'hann', 'none'}
             # lookup dict for reconstruction filter type and filter enable flag
             filter_control = {
                 'ramp' : (0, 1),
@@ -177,7 +180,7 @@ def iradon(sino, angles):
                 'none' : (0, 0),
             }
 
-            recon_filter, filter_enable = filter_control[config.xlict_recon_mpi_fbp_filter]
+            recon_filter, filter_enable = filter_control[filter]
             rm = {'xlict_recon_mpi_fbp':0, 'xlict_recon_gridrec':1}[implementation]
             xtract_options = \
                 r'-id {indir} --sino {prg} -od {outdir} -pfct r_.tif -rmu 1 ' \

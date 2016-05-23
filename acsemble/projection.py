@@ -198,6 +198,11 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
     """Generates the image-sized map of irradiance [1/(cm2 s)] at each 2d pixel
     for a given angle accounting for absorption at the incident energy by the
     full elemental distribution.
+    Note: In the full biological approximation, where we only need to consider absorption by
+    the matrix and not by the full elemental composition, we could cache this result,
+    possibly by adding the memoization decorator I use in Sakura here:
+    https://github.com/AustralianSynchrotron/Sakura/blob/master/utils.py
+    https://github.com/AustralianSynchrotron/Sakura/blob/master/memoize_core.py
 
     Parameters
     ----------

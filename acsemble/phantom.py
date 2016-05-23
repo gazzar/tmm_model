@@ -404,6 +404,20 @@ class Phantom2d(object):
         for el, el_map in self.el_maps.iteritems():
             el_map.clip(min=0.0, out=el_map)
 
+    def rescale_element(self, el):
+        """Rewrite el array, rescaling it according to a corresponding factor read from the
+        config file.
+
+        Parameters
+        ----------
+        el : str
+            element name e.g. 'Zn'
+
+        """
+        el_map = self.el_maps[el]
+        el_map *= config.sinogram_density_scaling[el]
+
+
 if __name__ == '__main__':
     # MAP = os.path.join('data', 'golosio_100.png')
 #     GOLOSIO_MAP = os.path.join('data', 'golosio_100*.tiff')

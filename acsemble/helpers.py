@@ -30,7 +30,9 @@ def write_tiff32(filename, im):
     if np.any(np.isnan(im)):
         logging.warning('warning: file {} contains NaNs'.format(filename))
     try:
-        imsave(filename, im, plugin='freeimage')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            imsave(filename, im, plugin='freeimage')
     except (ValueError, RuntimeError):
         tifffile.imsave(filename, im, compress=1)
     logging.info('save tiff: ' + filename)

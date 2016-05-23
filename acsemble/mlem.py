@@ -304,15 +304,17 @@ if __name__ == '__main__':
 
         return y
 
-    def backprojector(x, angles=None):
+    def backprojector(x, angles=None, **kwargs):
         """Wraps an inverse-radon-transform direct-backprojector; basically fbp without a
         filter. This takes a fluorescence sinogram and returns the direct-backprojected
         model estimate.
 
         Parameters
         ----------
-        x: sinogram: 2d ndarray of floats [g/cm2]
-        angles: 1d array/vector of projection angles [degree].
+        x : sinogram: 2d ndarray of floats [g/cm2]
+        angles : 1d array/vector of projection angles [degree].
+        kwargs : dictionary
+            If
 
         Returns
         -------
@@ -320,6 +322,10 @@ if __name__ == '__main__':
         units [g/cm3].
 
         """
+        if kwargs:
+            filter = kwargs['filter']
+        else:
+            filter = config.xlict_recon_mpi_fbp_filter
         x = np.copy(x)
         im_x = x / conversion_factor_for_el
 
@@ -328,7 +334,7 @@ if __name__ == '__main__':
         # which needs to be rescaled to units of [q]/cm.
         im_x *= UM_PER_CM/p.um_per_px
 
-        y = iradons.iradon(im_x, angles)
+        y = iradons.iradon(im_x, angles, filter=filter)
         y[circular_mask] = 0
         return y
 
@@ -358,9 +364,9 @@ if __name__ == '__main__':
     el_im = helpers.read_tiff32(el_im_filename)
     width_px = el_im.shape[1]
     um_per_px = map_width_um / width_px
-    im_recon_length_scale_factor = float(matrix_im.shape[0]) / width_px
 
     if config.matrix_blur:
+        im_recon_length_scale_factor = float(matrix_im.shape[0]) / width_px
         # Note: I verified that sn.filters.gaussian_filter doesn't renormalise the data;
         # the sum and mean are unchanged by the operation.
         im_recon = sn.filters.gaussian_filter(im_recon, sigma=4/im_recon_length_scale_factor)
@@ -384,6 +390,7 @@ if __name__ == '__main__':
     )
     # Maia sinograms can have -ve values but mlem doesn't allow that, so just clip the data.
     # This is biasing the data, but only by a little bit.
+    sinograms.rescale_element(config.element)
     sinograms.clip_positive()
     for el, el_map in sinograms.el_maps.iteritems():
         assert np.all(el_map >= 0.0)
@@ -449,6 +456,17 @@ if __name__ == '__main__':
     #     assert np.all(el_map >= 0.0)
 
     logger.info('i\tf_sum\tf_min\tf_max\tr_sum\tg_sum\tg_j_sum')
+
+    im = backprojector(g_j, angles=angles, filter=config.xlict_recon_reference_fbp_filter)
+    filename = os.path.join(
+                    config.mlem_im_path,
+                    '{}_fbp_{}_recon.tif'.format(
+                        config.element,
+                        config.xlict_recon_reference_fbp_filter
+                    )
+               )
+    helpers.write_tiff32(filename, im)
+
     im = helpers.read_tiff32(config.mlem_reference_image_path)
     im = im[::-1]   # temporarily flip the image up-down until I fix this inversion bug.
     mlem.set_reference_image(im)
