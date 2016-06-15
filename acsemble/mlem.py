@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """mlem algorithm
 Implements the iterative mlem algorithm, performing projection and
 backprojection in a loop.
@@ -10,9 +12,16 @@ My advice for learning about MLEM is to look at two books:
 
 """
 
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
+import six
+from . import config
+import logging
+logger = logging.getLogger(__name__)
 
-from profilehooks import profile
+if config.mlem_profile:
+    from profilehooks import profile
+else:
+    profile = lambda x: x
 
 import sys, os
 
@@ -22,7 +31,6 @@ os.environ.update(
     {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
 )
 
-import config           # keep this near the top of the imports
 import numpy as np
 import scipy as sp
 from scipy import stats
@@ -30,19 +38,13 @@ import matplotlib.pyplot as plt
 import skimage.transform as st
 import skimage.filters as sf
 import scipy.ndimage as sn
-import projection
-import data_helpers
-import helpers
-import logging
-
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.FileHandler(config.logger_path))
+from . import projection
+from . import data_helpers
+from . import helpers
+import click
 
 UM_PER_CM = 1e4
 
-
-all_positive = lambda a: np.all(a >= 0)
 
 class Mlem(object):
     def __init__(self, p, el, projector, backprojector, g_j, angles=None):
@@ -269,14 +271,13 @@ def density_from_attenuation_for_matrix(p):
     return mass.sum() / sinogram.sum()
 
 
-if __name__ == '__main__':
-
-    import phantom
-    import iradons
+@click.command()
+@click.option('--config-path', '-c', default=None, help='Path to config file')
+def main():
+    from . import phantom
+    from . import iradons
     import os
     import glob
-    import helpers
-    from data_helpers import MatrixProperties
 
     def projector_model(x, angles=None):
         """A function that computes and returns the fluorescence sinogram of the element
@@ -414,7 +415,7 @@ if __name__ == '__main__':
     # If/when we have an experimentally acquired absorption sinogram, we need
     # to obtain the matrix map from it, which requires a conversion factor,
     # by which to multiply the sinogram:
-    p.matrix = MatrixProperties(p)
+    p.matrix = helpers.MatrixProperties(p)
 
     # For now, I will smooth the ricegrain matrix and rescale it according to the
     # proportionality constant k = config.density_per_compton_count [g cm^-3 count^-1]
@@ -464,7 +465,7 @@ if __name__ == '__main__':
                         config.element,
                         config.xlict_recon_reference_fbp_filter
                     )
-               )
+                )
     helpers.write_tiff32(filename, im)
 
     im = helpers.read_tiff32(config.mlem_reference_image_path)
@@ -474,3 +475,7 @@ if __name__ == '__main__':
     for im in range(101):
         config.i = im
         mlem.iterate()
+
+
+if __name__ == '__main__':
+    main()

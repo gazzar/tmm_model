@@ -1,11 +1,17 @@
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+from . import config
+import logging
+logger = logging.getLogger(__name__)
+
 import numpy as np
 import skimage.transform as st
 import os
 import subprocess
-import config
 import imageio
 import fnmatch
-import helpers
+from . import helpers
 
 UM_PER_CM = 1e4
 
@@ -250,6 +256,6 @@ if __name__ == "__main__":
     config.iradon_implementation = 'xlict_recon_mpi_fbp'
     # config.iradon_implementation = 'xlict_recon_gridrec'
     im2 = iradon(p, angles)
-    print im1
-    print im2
-    print 'scale_factor =', im1/im2
+    print(im1)
+    print(im2)
+    print('scale_factor =', im1/im2)

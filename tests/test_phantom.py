@@ -1,17 +1,16 @@
-import sys, os
-PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [
-            os.path.join(PATH_HERE, '..'),
-            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
-           ] + sys.path
-import config
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+import six
+import context
 import unittest
-from phantom import Phantom2d
+import os
+from acsemble.phantom import Phantom2d
 import numpy as np
 
-
-GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'data', 'golosio_100.png')
-YAMLFILE = os.path.join(PATH_HERE, '..', 'data', 'golosio.yaml')
+PATH_HERE = os.path.abspath(os.path.dirname(__file__))
+GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'acsemble', 'data', 'golosio_100.png')
+YAMLFILE = os.path.join(PATH_HERE, '..', 'acsemble', 'data', 'golosio.yaml')
 
 
 class LoadMapTests(unittest.TestCase):
@@ -53,7 +52,7 @@ class YamlFileSanityTests(unittest.TestCase):
             self.assertAlmostEqual(sum(compound[1].values()), 1.0)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
+    import sys
     from numpy.testing import run_module_suite
-    run_module_suite()
-()
+    run_module_suite(argv=sys.argv)

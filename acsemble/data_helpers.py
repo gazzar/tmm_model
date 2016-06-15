@@ -1,4 +1,11 @@
-from __future__ import print_function
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+from . import config
+
+import logging
+logger = logging.getLogger(__name__)
+
 import xraylib as xrl
 import numpy as np
 

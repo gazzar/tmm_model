@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """Phantom class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
 geometry and composition data, with class methods supplied to instantiate it.
@@ -7,20 +9,23 @@ data structure defined in a yaml file.
 
 """
 
-from __future__ import print_function
-import os
-import config
+from __future__ import absolute_import, division, print_function
+import six
+from . import config
 import logging
+logger = logging.getLogger(__name__)
+
+import os
 import numpy as np
 from imageio import imread
 from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
 from collections import Iterable
-import helpers
-from helpers import write_tiff32, read_tiff32
-from data_helpers import MatrixProperties
-import yaml
+from . import helpers
+from .helpers import write_tiff32, read_tiff32
+from .data_helpers import MatrixProperties
+import ruamel.yaml as yaml
 import glob
 import textwrap
 
@@ -336,7 +341,7 @@ class Phantom2d(object):
             density, weights = self.compounds[compound]
             # Normalize weights so that they sum to 1
             sum_of_weights = sum(weights.values())
-            weights = {k:v/sum_of_weights for k,v in weights.iteritems()}
+            weights = {k:v/sum_of_weights for k,v in six.iteritems(weights)}
 
             # Distribute elements to the individual maps or the matrix
             for el in weights:

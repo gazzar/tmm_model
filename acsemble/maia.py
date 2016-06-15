@@ -1,28 +1,22 @@
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+from . import config
+import logging
+logger = logging.getLogger(__name__)
+
 import sys, os
 
-# Set environ so that mayavi uses Qt instead of wx
-os.environ.update(
-    {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
-)
-
-import config           # keep this near the top of the imports
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    import transformations as tx
-
-from mayavi import mlab
+    from . import transformations as tx
 
 
 """Maia detector class"""
-
-PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-# sys.path = [os.path.join(PATH_HERE, '..')] + sys.path
-MAIA_DATA = os.path.join(PATH_HERE, 'data', 'Maia_384C.csv')
-
 
 class Pad(object):
     """Represents a single detector pad. The pad is created in the
@@ -441,9 +435,12 @@ class Maia(Singleton):
 
 
 if __name__ == '__main__':
-    # MAIA_SINGLE_PAD_DATA = os.path.join(PATH_HERE, 'data',
-    #                                     'pseudo_maia_as_one_square_pad.csv')
+    from mayavi import mlab
 
+    # Set environ so that mayavi uses Qt instead of wx
+    os.environ.update(
+        {'QT_API': 'pyqt', 'ETS_TOOLKIT': 'qt4'}
+    )
     # det = Maia(centre_mm=(0,0,10), unit_normal=(0,0,1))  # Detector instance
     # det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))
     # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))

@@ -3,6 +3,8 @@ acsemble
 
 Author: Gary Ruben
 
+CSIRO Biophysics/Manufacturing Business Unit
+
 Absorption corrected reconstruction for X-ray Fluorescence Tomography.
 Currently this implements a forward model for tomography at the Australian
 Synchrotron XFM beamline.
@@ -21,8 +23,8 @@ Notes
 This version developed using Anaconda Python distribution and tested on
 Windows 7 64-bit.
 The file tifffile.py is included under the terms of the modified BSD license and
-is Copyright (c) 2008-2014, Christoph Gohlke
-It was obtained from http://www.lfd.uci.edu/~gohlke/ in January 2014
+is Copyright (c) 2008-2016, Christoph Gohlke
+It was obtained from http://www.lfd.uci.edu/~gohlke/ in June 2016
 
 The file transformations.py is included under the terms of the modified BSD
 license and is Copyright (c) 2006-2015, Christoph Gohlke

@@ -1,6 +1,9 @@
-"""General helper functions"""
+#!/usr/bin/python3
 
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
+from . import config
+import logging
+logger = logging.getLogger(__name__)
 import skimage.transform as st
 try:
     from skimage.measure import compare_ssim
@@ -11,13 +14,11 @@ except ImportError:
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
-import config
-import logging
 import fnmatch, re
 import warnings
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    import tifffile
+    from . import tifffile
     from skimage.io import imsave, imread
 
 

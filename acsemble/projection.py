@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """Projection class
 Implements a class for 2D phantoms. The Golosio phantom is coded in terms of
 geometry and composition data, with class methods supplied to instantiate it.
@@ -7,10 +9,12 @@ data structure defined in a yaml file.
 
 """
 
-from __future__ import print_function
-import config
-import os
+from __future__ import absolute_import, division, print_function
+from . import config
 import logging
+logger = logging.getLogger(__name__)
+
+import os
 import glob
 import fnmatch
 
@@ -20,10 +24,10 @@ import scipy.constants as sc
 from scipy.special import expm1
 import xraylib as xrl
 
-from helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
-from data_helpers import MatrixProperties
-from maia import Maia
-import helpers
+from .helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
+from .data_helpers import MatrixProperties
+from .maia import Maia
+from . import helpers
 from progressbar import ProgressBar
 import matplotlib.pyplot as plt
 

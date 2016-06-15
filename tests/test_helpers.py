@@ -1,12 +1,10 @@
-import sys, os
-PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [
-            os.path.join(PATH_HERE, '..'),
-            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
-           ] + sys.path
-import config
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+import six
+import context
 import unittest
-import helpers
+from acsemble import helpers
 import numpy as np
 
 
@@ -29,6 +27,7 @@ class MatchPatternTests(unittest.TestCase):
         matches = helpers.match_pattern('a*z', ['abc'])
         self.assertSequenceEqual(matches, [])
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
+    import sys
     from numpy.testing import run_module_suite
-    run_module_suite()
+    run_module_suite(argv=sys.argv)

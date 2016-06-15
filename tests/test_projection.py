@@ -1,18 +1,17 @@
-import sys, os
-PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [
-            os.path.join(PATH_HERE, '..'),
-            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
-           ] + sys.path
-import config
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+import six
+import context
 import unittest
-from phantom import Phantom2d
-import projection
+from acsemble.phantom import Phantom2d
+from acsemble import projection
+import os
 import numpy as np
 
-
-GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'data', 'golosio_100.png')
-YAMLFILE = os.path.join(PATH_HERE, '..', 'data', 'golosio.yaml')
+PATH_HERE = os.path.abspath(os.path.dirname(__file__))
+GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'acsemble', 'data', 'golosio_100.png')
+YAMLFILE = os.path.join(PATH_HERE, '..', 'acsemble', 'data', 'golosio.yaml')
 
 
 class OutgoingPhotonEnergyTests(unittest.TestCase):
@@ -53,6 +52,7 @@ class OutgoingPhotonEnergyTests(unittest.TestCase):
         # self.assertAlmostEqual(energy_outer, 14.324, places=3) # Maia Rev A
         self.assertAlmostEqual(energy_outer, 14.282, places=3) # For Maia Rev C
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
+    import sys
     from numpy.testing import run_module_suite
-    run_module_suite()
+    run_module_suite(argv=sys.argv)

@@ -1,16 +1,15 @@
-import sys, os
-PATH_HERE = os.path.abspath(os.path.dirname(__file__))
-sys.path = [
-            os.path.join(PATH_HERE, '..'),
-            os.path.join(PATH_HERE, '..', '..'),    # include path to version.py
-           ] + sys.path
-import config           # keep this near the top of the imports
+#!/usr/bin/python3
+
+from __future__ import absolute_import, division, print_function
+import six
+import context
+
 import unittest
-from maia import Maia, Pad
+from acsemble.maia import Maia, Pad
 import warnings
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    import transformations as tx
+    import acsemble.transformations as tx
 import numpy as np
 
 
@@ -193,7 +192,6 @@ class SolidAngleTests(unittest.TestCase):
                                                       d_mm)
             self.assertAlmostEqual(omega_pad, omega_det_pad)
 
-
     def test_sa_rect1(self):
         a, b = self.a_mm, self.b_mm
         sa1 = self.det._rect_solid_angle(a, b, self.d_mm)
@@ -332,6 +330,7 @@ class SolidAngleTests(unittest.TestCase):
         """
         Pad.clear_pads()
 
-if __name__ == "__main__":
+if __name__ == "__main__" :
+    import sys
     from numpy.testing import run_module_suite
-    run_module_suite()
+    run_module_suite(argv=sys.argv)
