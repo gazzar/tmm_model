@@ -5,13 +5,13 @@ import six
 import context
 import unittest
 import numpy as np
-from acsemble import mlem
+from acsemble import mlem_reconstruction
 
 
 def test_noisify():
     im = np.array([[1.0, 2.0], [3.0, 4.0]])
-    noisy_im1 = mlem.noisify(im, frac=0.1)
-    noisy_im2 = mlem.noisify(im, frac=0.5)
+    noisy_im1 = mlem_reconstruction.noisify(im, frac=0.1)
+    noisy_im2 = mlem_reconstruction.noisify(im, frac=0.5)
     assert(np.dot(noisy_im1, noisy_im1).sum() < np.dot(noisy_im2, noisy_im2).sum())
 
 

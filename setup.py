@@ -13,7 +13,6 @@ setup(
     entry_points={
         'console_scripts': [
             'main-script = acsemble.main:main',
-            'mlem-script = acsemble.mlem:main',
         ]
     },
     install_requires=[

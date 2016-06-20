@@ -6,6 +6,7 @@ import context
 import unittest
 from acsemble import helpers
 import numpy as np
+import os
 
 
 class MatchPatternTests(unittest.TestCase):
@@ -26,6 +27,10 @@ class MatchPatternTests(unittest.TestCase):
     def test_no_match(self):
         matches = helpers.match_pattern('a*z', ['abc'])
         self.assertSequenceEqual(matches, [])
+
+def test_match_path_pattern():
+    matches = helpers.match_path_pattern('x/y\\a*z', ['x/y\\abz'])
+    assert(matches == [(os.path.join('x', 'y', 'abz'), 'b')])
 
 if __name__ == "__main__" :
     import sys
