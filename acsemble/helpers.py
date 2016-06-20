@@ -11,6 +11,7 @@ try:
 except ImportError:
     from skimage.measure import structural_similarity as compare_ssim
     mssim_version = "old"
+import os
 import numpy as np
 import scipy.ndimage as nd
 import matplotlib.pyplot as plt
@@ -157,7 +158,7 @@ def rotate(im, angle):
             return st.rotate(im, angle, preserve_range=True)
 
 
-def match_pattern(pattern, s):
+def match_pattern(pattern, s, normalise_paths=True):
     """Does a glob pattern match against a list of strings. Only the *
     character is currently supported here (no ? or []). Returns a list of
     tuples of (matching_string, matching_glob_component). For example
@@ -176,12 +177,18 @@ def match_pattern(pattern, s):
         character to define a wildcard section
     s - string
         The comparison string to match against the pattern
+    normalise_paths - bool
+        If True, normalises all path eparators to the native separator for the current os
 
     Returns
     -------
     list of tuples of (matching_string, matching_glob_component)
 
     """
+    if normalise_paths:
+        pattern = os.path.normpath(pattern)
+        s = [os.path.normpath(p) for p in s]
+
     # Create a regex that will capture the glob pattern part
     regex = fnmatch.translate(pattern).replace('.*', '(.*)')
     reobj = re.compile(regex)
