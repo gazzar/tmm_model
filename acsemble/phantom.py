@@ -101,8 +101,8 @@ class Phantom2d(object):
             # No filename was specified; just create a minimal Phantom2d
             # object to be populated by the instantiating code.
             self.rows, self.cols = shape
-            assert isinstance(self.rows, (int, long)) and \
-                   isinstance(self.cols, (int, long))
+            assert isinstance(self.rows, six.integer_types) and \
+                   isinstance(self.cols, six.integer_types)
             self.phantom_array = np.zeros(shape, dtype=int)
 
     def __str__(self):
@@ -406,7 +406,7 @@ class Phantom2d(object):
         """Rewrite all arrays, clipping them to only contain positive values.
 
         """
-        for el, el_map in self.el_maps.iteritems():
+        for el, el_map in six.iteritems(self.el_maps):
             el_map.clip(min=0.0, out=el_map)
 
     def rescale_element(self, el):
