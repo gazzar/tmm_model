@@ -11,7 +11,7 @@ from . import version
 
 ENV_NAME = 'ACSEMBLE_CONFIG'
 CONFIG_NAME = 'acsemble.yaml'
-
+config_dict = {}
 
 def config_init():
     def _open_first_config(filelist):
@@ -39,8 +39,8 @@ def config_init():
                 env_var = interpolated
 
     # populate module namespace with default config settings
-    config = yaml.load(default())
-    update(config)
+    config_dict = yaml.load(default())
+    update(config_dict)
 
     dirs = AppDirs(version.__name__)
     if ENV_NAME not in os.environ:
@@ -207,13 +207,25 @@ def set_logger(verbose):
 
 
 def update(config):
+    config_dict.update(config)
     globals().update(config)
+
+
+def write_config(filename):
+    """ Dump a copy of the config to filename
+    Arguments
+    ---------
+    filename - str
+
+    """
+    with open(filename, 'w') as f:
+        yaml.dump(config_dict, f)
 
 
 def update_from_file(filename):
     with open(filename, 'r') as config_file:
         update(yaml.load(config_file.read()))
-        print('Reading config from {}'.format(filename))
+        print('Updating config from {}'.format(filename))
     import_recipy()
 
 
