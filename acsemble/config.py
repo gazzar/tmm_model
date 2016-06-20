@@ -5,6 +5,7 @@ import ruamel.yaml as yaml
 from appdirs import AppDirs
 import logging
 import logging.config
+logger = logging.getLogger(__name__)
 import textwrap
 from . import version
 
@@ -200,8 +201,8 @@ def set_logger(verbose):
     dirs = AppDirs(version.__name__)
     ensure_dir_exists(dirs.user_config_dir)
 
-    logging.config.dictConfig(logging_config)
-    print('logging to ' + logging_config['handlers']['file']['filename'])
+    logging.config.dictConfig(config_dict['logging_config'])
+    print('logging to ' + config_dict['logging_config']['handlers']['file']['filename'])
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -226,11 +227,18 @@ def update_from_file(filename):
     with open(filename, 'r') as config_file:
         update(yaml.load(config_file.read()))
         print('Updating config from {}'.format(filename))
+
+    try:
+        config_dict['logging_config']['handlers']['file']['filename'] = config_dict['logger_path']
+        set_logger(verbose=True)
+    except KeyError:
+        pass
+
     import_recipy()
 
 
 def import_recipy():
-    if use_recipy:
+    if config_dict['use_recipy']:
         try:
             import recipy
         except ImportError:
@@ -245,5 +253,5 @@ config_init()
 
 # logger_path and use_recipy have now been created in this module's namespace by update()
 
-set_logger(verbose=verbose)
+set_logger(verbose=True)
 import_recipy()
