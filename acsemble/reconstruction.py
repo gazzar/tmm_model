@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 import os
 import numpy as np
 from skimage.transform import iradon, iradon_sart, rotate
-import helpers
-from helpers import write_tiff32
+from acsemble import helpers
+from acsemble.helpers import write_tiff32
 import glob, re, fnmatch
 
 
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     p = phantom.Phantom2d(filename='s_golosio*.tiff')
 
-    print p
+    print(p)
 
     anglesfile = os.path.join(BASE, r'acsemble\data\angles.txt')
     reconstruct(p, 'f', anglesfile)
