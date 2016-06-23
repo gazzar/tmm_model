@@ -6,15 +6,14 @@
 from __future__ import absolute_import, division, print_function
 from . import config
 import logging
-logger = logging.getLogger(__name__)
-
 import os
 import numpy as np
-from skimage.transform import iradon, iradon_sart, rotate
+from skimage.transform import iradon, iradon_sart
 from acsemble import helpers
 from acsemble.helpers import write_tiff32
-import glob, re, fnmatch
+import glob
 
+logger = logging.getLogger(__name__)
 
 UM_PER_CM = 1e4
 
@@ -58,7 +57,7 @@ def reconstruct_and_write(p, el, algorithm, anglelist=None):
 
     matches = helpers.match_pattern(pattern, glob.glob(pattern))
     if matches:
-        match_base = [m[0] for m in matches if el==m[1]][0]
+        match_base = [m[0] for m in matches if el == m[1]][0]
     else:
         raise Exception('Element {} not found in {}'.format(el, matches))
 

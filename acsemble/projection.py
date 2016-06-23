@@ -12,24 +12,23 @@ data structure defined in a yaml file.
 from __future__ import absolute_import, division, print_function
 from . import config
 import logging
-logger = logging.getLogger(__name__)
-
 import os
 import glob
 import fnmatch
+from progressbar import ProgressBar
 
 import numpy as np
 from numpy import exp, pi
 import scipy.constants as sc
 from scipy.special import expm1
+import matplotlib.pyplot as plt
 import xraylib as xrl
 
-from .helpers import (write_tiff32, zero_outside_circle, rotate, imshow)
-from .data_helpers import MatrixProperties
-from .maia import Maia
 from . import helpers
-from progressbar import ProgressBar
-import matplotlib.pyplot as plt
+from .helpers import write_tiff32, zero_outside_circle, rotate, imshow
+from .data_helpers import MatrixProperties
+
+logger = logging.getLogger(__name__)
 
 
 UM_PER_CM = 1e4
@@ -37,7 +36,7 @@ J_PER_KEV = 1e3 * sc.eV
 deg_to_rad = lambda x: x / 180. * pi
 rad_to_deg = lambda x: x * 180. / pi
 
-maia_d = Maia()  # Maia detector object (should be a singleton)
+# maia_d = Maia()  # Maia detector object (should be a singleton)
 
 
 def absorption_sinogram(p, anglelist):
@@ -73,7 +72,7 @@ def absorption_sinogram(p, anglelist):
     return sinogram
 
 
-def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
+def outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=True):
     """Compute and return the outgoing cumulative multiplicative absorption map
     (cmam), aka xi'.
 
@@ -84,6 +83,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
         p.um_per_px - length of one pixel of the map (um).
     q : int
         Maia detector channel id
+    maia_d : Maia() instance
     angle : float
         Tomography projection angle (degree)
     energy : float
@@ -138,7 +138,7 @@ def outgoing_cmam(p, q, angle, energy, increasing_ix=True):
     return mu * t / np.cos(phi_y)
 
 
-def project_sinogram(event_type, p, q, anglelist, el=None):
+def project_sinogram(event_type, p, q, maia_d, anglelist, el=None):
     """Generates the sinogram of the requested element accounting for
     absorption by the Phantom2d composition and the geometry.
 
@@ -151,6 +151,7 @@ def project_sinogram(event_type, p, q, anglelist, el=None):
         p.um_per_px - length of one pixel of the map (um).
     q : int
         Maia detector channel id
+    maia_d : Maia() instance
     anglelist : list of float
         Ordered list of sinogram projection angles in degrees.
     el : string, optional
@@ -177,9 +178,9 @@ def project_sinogram(event_type, p, q, anglelist, el=None):
 
         increasing_ix = True   # Set True to accumulate cmam along increasing y
         n_map = irradiance_map(p, angle, n0=1.0, increasing_ix=increasing_ix)
-        e_map = channel_fluoro_map(p, q, n_map, angle, el)
-        energy = outgoing_photon_energy(event_type, p, q, el)
-        c = outgoing_cmam(p, q, angle, energy, increasing_ix=increasing_ix)
+        e_map = channel_fluoro_map(p, q, maia_d, n_map, angle, el)
+        energy = outgoing_photon_energy(event_type, p, q, maia_d, el)
+        c = outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=increasing_ix)
         if config.no_out_absorption:
             sinogram[:, i] = e_map.sum(axis=0)
         else:
@@ -240,7 +241,6 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
     # The linear absorption map mu0 = ma_M * mu_M + sum_k ( ma_k * mu_k )
     mu0 = p.matrix.ma(p.energy) * p.el_maps['matrix']
     if not config.absorb_with_matrix_only:
-    # if not matrix_only:
         for el in p.el_maps:
             if el == 'matrix':
                 continue
@@ -264,8 +264,8 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
         n_map = n0 * exp(-cmam)
     return n_map
 
-
-def scattering_ma(event_type, p, row, col):
+'''
+def scattering_ma(event_type, p, maia_d, row, col):
     """Return the Rayleigh or Compton differential mass attenuation coefficients
     (cm2/g/sr) for icru44 brain tissue with density described by the 'matrix'
     map of phantom p into the Maia detector element indexed by row, col. This
@@ -274,6 +274,8 @@ def scattering_ma(event_type, p, row, col):
     Arguments:
     event_type - string, one of ['rayleigh', 'compton']
     p - phantom instance (matrix plus elements)
+    maia_d - Maia instance
+
     row, col - maia detector element indices
 
     Returns:
@@ -283,7 +285,6 @@ def scattering_ma(event_type, p, row, col):
     assert event_type in ['rayleigh', 'compton']
 
     # Get spherical angles (polar theta & azimuthal phi) to detector element
-        # Get spherical angles (polar theta & azimuthal phi) to detector element
     theta = maia_d.pads[q].theta
     phi = maia_d.pads[q].phi
 
@@ -313,7 +314,7 @@ def scattering_ma(event_type, p, row, col):
     return ma
 
 
-def compton_scattered_energy(energy_in, q):
+def compton_scattered_energy(energy_in, q, maia_d):
     """Energy of the Compton photons scattered into the direction of the Maia
     detector element.
 
@@ -323,6 +324,7 @@ def compton_scattered_energy(energy_in, q):
         Incident beam photon energy (keV).
     q : int
         Maia detector channel id
+    maia_d : Maia instance
 
     Returns
     -------
@@ -337,7 +339,7 @@ def compton_scattered_energy(energy_in, q):
     # energy_out = 1.0 / (1.0/energy_in +
     # (1 - np.cos(theta))*J_PER_KEV/sc.m_e/sc.c/sc.c)
     return xrl.ComptonEnergy(energy_in, theta)
-
+'''
 
 '''
 def old_emission_map(event_type, p, n_map, angle, el=None):
@@ -469,7 +471,7 @@ def old_emission_map(event_type, p, n_map, angle, el=None):
 '''
 
 
-def outgoing_photon_energy(event_type, p, q=None, el=None):
+def outgoing_photon_energy(event_type, p, q=None, maia_d=None, el=None):
     """Return the interaction-type-dependent outgoing photon energy in keV.
 
     Parameters
@@ -481,6 +483,7 @@ def outgoing_photon_energy(event_type, p, q=None, el=None):
         p.um_per_px - length of one pixel of the map (um).
     q : int (optional, required for compton interaction)
         Maia detector channel id
+    maia_d : Maia() instance (optional, required for compton interaction)
     el : string (optional, required for fluoro interaction)
         Name of fluorescing element (e.g. 'Fe').
 
@@ -496,14 +499,17 @@ def outgoing_photon_energy(event_type, p, q=None, el=None):
         el_z = xrl.SymbolToAtomicNumber(el)
         line = xrl.KA_LINE
         energy = xrl.LineEnergy(el_z, line)
-        #assert energy < p.energy
+        # assert energy < p.energy
         return energy
 
+    '''
     if event_type == 'rayleigh':
         energy = p.energy
     elif event_type == 'compton':
-        energy = compton_scattered_energy(p.energy, q)
+        energy = compton_scattered_energy(p.energy, q, maia_d)
     else:           # 'fluoro'
+    '''
+    if True:        # Just support 'fluoro' for now
         energy = k_alpha_energy(el)
 
     return energy
@@ -542,7 +548,7 @@ def fluoro_emission_map(p, n_map, angle, el):
 
     # Sanity check that el K_alpha is below the incident energy.
     k_alpha_energy = xrl.LineEnergy(el_z, line)
-    #assert k_alpha_energy < p.energy
+    # assert k_alpha_energy < p.energy
     if k_alpha_energy >= p.energy:
         Q = 0.0
     else:
@@ -558,7 +564,7 @@ def fluoro_emission_map(p, n_map, angle, el):
     return emission_map
 
 
-def channel_emission_map(event_type, p, q, n_map, angle, el):
+def channel_emission_map(event_type, p, q, maia_d, n_map, angle, el):
     """Select and defer to the interaction-type-specific emission map
     computation.
 
@@ -571,6 +577,7 @@ def channel_emission_map(event_type, p, q, n_map, angle, el):
         p.um_per_px - length of one pixel of the map (um).
     q : int
         Maia detector channel id
+    maia_d : Maia() instance
     n_map : 2d ndarray of float
         Map of incident irradiance.
     angle : float
@@ -587,18 +594,18 @@ def channel_emission_map(event_type, p, q, n_map, angle, el):
     assert event_type in ['rayleigh', 'compton', 'fluoro']
 
     if event_type == 'fluoro':
-        e_map = channel_fluoro_map(p, q, n_map, angle, el)
+        e_map = channel_fluoro_map(p, q, maia_d, n_map, angle, el)
     elif event_type == 'rayleigh':
-        e_map = channel_rayleigh_map(p, q, n_map, angle)
+        e_map = channel_rayleigh_map(p, q, maia_d, n_map, angle)
     elif event_type == 'compton':
-        e_map = channel_compton_map(p, q, n_map, angle)
+        e_map = channel_compton_map(p, q, maia_d, n_map, angle)
     else:
         raise RuntimeError('Brain explodes')
 
     return e_map
 
 
-def channel_fluoro_map(p, q, n_map, angle, el):
+def channel_fluoro_map(p, q, maia_d, n_map, angle, el):
     """Compute the maia-detector-shaped map of K-edge
     fluorescence from the element map for an incident irradiance map n_map.
 
@@ -609,6 +616,7 @@ def channel_fluoro_map(p, q, n_map, angle, el):
         p.um_per_px - length of one pixel of the map (um).
     q : int
         Maia detector channel id
+    maia_d : Maia instance
     n_map : 2d ndarray of float
         Map of incident irradiance.
     angle : float
@@ -627,7 +635,7 @@ def channel_fluoro_map(p, q, n_map, angle, el):
             fluoro_emission_map(p, n_map, angle, el))
 
 
-def channel_rayleigh_map(p, q, n_map, angle):
+def channel_rayleigh_map(p, q, maia_d, n_map, angle):
     """Compute the maia-detector-shaped map of Rayleigh scattering
     from the element map for an incident irradiance map n_map.
 
@@ -638,12 +646,11 @@ def channel_rayleigh_map(p, q, n_map, angle):
         p.um_per_px - length of one pixel of the map (um).
     q : int
         Maia detector channel id
+    maia_d : Maia() instance
     n_map : 2d ndarray of float
         Map of incident irradiance.
     angle : float
         Stage rotation angle (degrees).
-    el : string
-        Name of fluorescing element (e.g. 'Fe').
 
     Returns
     -------
@@ -733,77 +740,3 @@ def write_sinogram(im, p, event_type, el='matrix'):
     write_tiff32(s_filename, im)
 
     return im
-
-
-def project(p, event_type):
-    """This is the entry point for the sinogram project script.
-    Performs the projection at all specified angles and writes the resulting
-    sinograms out as tiffs.
-
-    Parameters
-    ----------
-    p : Phantom2d object
-    event_type : string
-        One of 'afrc'.
-
-    """
-    # globals().update(args)  # expose args_namespace
-
-    assert event_type in 'afrc'
-    event_type = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
-                  'c': 'compton'}[event_type]
-
-    anglelist = np.loadtxt(config.anglesfile)
-    q = config.detector_pads[0]
-    if event_type == 'absorption':
-        im = absorption_sinogram(p, anglelist)
-        s = write_sinogram(im, p, event_type)
-    elif event_type == 'fluoro':
-        # fluorescence sinogram
-        for el in p.el_maps:
-            if el == 'matrix':
-                continue
-            im = project_sinogram(event_type, p, q, anglelist, el)
-            s = write_sinogram(im, p, event_type, el)
-    else:
-        # event_type is 'rayleigh' or 'compton'
-        # Absorption, Rayleigh or Compton scattering sinogram of matrix
-        im = project_sinogram(event_type, p, q, anglelist)
-        s = write_sinogram(im, p, event_type)
-
-    return s
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    import phantom
-
-    BASE = r'R:\Science\XFM\GaryRuben\projects\TMM'
-    DATA_DIR = os.path.join(BASE, r'work\20141016')
-    os.chdir(DATA_DIR)
-
-    el = 'Cu'
-
-    p = phantom.Phantom2d(filename='phantom1*.tiff',
-                          yamlfile='phantom1-%s.yaml'%el,
-                          um_per_px=12.52,
-                          energy=9)
-
-    anglelist = np.loadtxt(config.anglesfile, dtype=int)
-    # sinogram = absorption_sinogram(p, anglelist, el, show_progress=True)
-    # sinogram = project_sinogram('rayleigh', p, anglelist, el, show_progress=True)
-
-    q = config.detector_pads[0]
-    sinogram = project_sinogram('fluoro', p, q, anglelist, el)
-
-    # np.save('sino'+el, sinogram)
-    imshow(sinogram, extent=[0, 360, 0, 99], aspect=2, cmap='cubehelix')
-    plt.xlabel('rotation angle (deg)')
-    plt.ylabel('x')
-    plt.show()
-
-
-    for event_type in 'arcf':
-        event_name = {'a': 'absorption', 'f': 'fluoro', 'r': 'rayleigh',
-                      'c': 'compton'}[event_type]
-        project(p, event_type)

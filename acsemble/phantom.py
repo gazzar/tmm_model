@@ -13,8 +13,6 @@ from __future__ import absolute_import, division, print_function
 import six
 from . import config
 import logging
-logger = logging.getLogger(__name__)
-
 import os
 import numpy as np
 from imageio import imread
@@ -32,9 +30,12 @@ import textwrap
 # suppress spurious skimage warning
 import warnings
 
-#-------------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
+
+# -------------------------------------------------------------------------------
 # Phantoms
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+
 
 class Phantom2d(object):
     """
@@ -73,9 +74,7 @@ class Phantom2d(object):
         #     value: density map array (g/cm3)
         # Example:
         #   {'matrix':<nxm ndarray>, 'Zn':<nxm ndarray>, 'Fe':<nxm ndarray>}
-        self.el_maps = {}       #
-        #
-                                # One of these has the key 'matrix'
+        self.el_maps = {}
         self.filename = filename
         self.yamlfile = yamlfile
         self.energy = energy
@@ -101,8 +100,8 @@ class Phantom2d(object):
             # No filename was specified; just create a minimal Phantom2d
             # object to be populated by the instantiating code.
             self.rows, self.cols = shape
-            assert isinstance(self.rows, six.integer_types) and \
-                   isinstance(self.cols, six.integer_types)
+            assert (isinstance(self.rows, six.integer_types)
+                    and isinstance(self.cols, six.integer_types))
             self.phantom_array = np.zeros(shape, dtype=int)
 
     def __str__(self):
@@ -126,13 +125,13 @@ class Phantom2d(object):
                 um_per_px: {um_per_px}
                 rows, cols: ({rows}, {cols})
                 '''.format(
-                    id = id(self),
-                    el_maps = self.el_maps.keys(),
-                    filename = rp_filename,
-                    yamlfile = rp_yamlfile,
-                    energy = self.energy,
-                    um_per_px = self.um_per_px,
-                    rows = self.rows, cols = self.cols,
+                    id=id(self),
+                    el_maps=self.el_maps.keys(),
+                    filename=rp_filename,
+                    yamlfile=rp_yamlfile,
+                    energy=self.energy,
+                    um_per_px=self.um_per_px,
+                    rows=self.rows, cols=self.cols,
                 )
         return textwrap.dedent(repstr)
 
@@ -341,7 +340,7 @@ class Phantom2d(object):
             density, weights = self.compounds[compound]
             # Normalize weights so that they sum to 1
             sum_of_weights = sum(weights.values())
-            weights = {k:v/sum_of_weights for k,v in six.iteritems(weights)}
+            weights = {k: v/sum_of_weights for k, v in six.iteritems(weights)}
 
             # Distribute elements to the individual maps or the matrix
             for el in weights:
@@ -421,12 +420,3 @@ class Phantom2d(object):
         """
         el_map = self.el_maps[el]
         el_map *= config.sinogram_density_scaling[el]
-
-
-if __name__ == '__main__':
-    # MAP = os.path.join('data', 'golosio_100.png')
-#     GOLOSIO_MAP = os.path.join('data', 'golosio_100*.tiff')
-    MAP = r'R:\Science\XFM\GaryRuben\projects\TMM\work\data' \
-                  r'\phantom1_100.png'
-    p = Phantom2d(filename=MAP)#, matrix_elements='H C N O Na P S Cl K')
-    p.split_map('data')

@@ -18,11 +18,6 @@ from . import config
 import logging
 logger = logging.getLogger(__name__)
 
-if config.mlem_profile:
-    from profilehooks import profile
-else:
-    profile = lambda x: x
-
 import sys, os
 
 # Set environ so that matplotlib uses v2 interface to Qt, because we are
@@ -44,6 +39,11 @@ from . import helpers
 import click
 
 UM_PER_CM = 1e4
+
+# if config.mlem_profile:
+#     from profilehooks import profile
+# else:
+#     profile = lambda x: x
 
 
 class Mlem(object):
@@ -74,14 +74,14 @@ class Mlem(object):
         self.i = 0
         # As per conventional MLEM, set initial self.f estimate to all ones to avoid bias.
         self.f = np.ones((g_j.shape[0], g_j.shape[0]))           # units of self.f [g/cm3]
-        self.weighting = backprojector(np.ones_like(g_j), angles)   # units of weighting [???]
+        self.weighting = backprojector(np.ones_like(g_j), angles) # units of weighting [???]
         # The backprojector forces 0's outside the inscribed circle after backprojection.
         # This will cause divide-by-zero errors if the numerator has zeros in this region.
         # Avoid this by clipping everything to +epsilon.
         assert self.f.shape == self.weighting.shape
         self.weighting.clip(self.epsilon, out=self.weighting)
 
-    @profile
+    # @profile
     def iterate(self):
         # From Lalush and Wernick (See [2]);
         # f^\hat <- (f^\hat / |\sum h|) * \sum h * (g_j / g)          ... (*)
@@ -215,7 +215,7 @@ def density_from_attenuation(p, attenuation_map):
     return density_map
 
 
-def density_from_fluorescence_for_el(p, q, el):
+def density_from_fluorescence_for_el(p, q, maia_d, el):
     """
     Make a calibration of the ratio of fluorescence irradiance to areal
     density. For sinograms with units of quantity q per cm2, these
@@ -230,6 +230,7 @@ def density_from_fluorescence_for_el(p, q, el):
     p : Phantom2d object
     q : int
         Maia detector pad id
+    maia_d : Maia() instance
     el : string
         element, e.g. 'Ni', 'Fe', 'Zn'
 
@@ -245,7 +246,7 @@ def density_from_fluorescence_for_el(p, q, el):
     config.no_out_absorption = True
     config.no_in_absorption = True
     sinogram = projection.project_sinogram(event_type='fluoro', p=p, q=q,
-                                           anglelist=[0], el=el)
+                                        maia_d=maia_d, anglelist=[0], el=el)
     # restore overridden absorption settings
     config.no_out_absorption = conf_o
     config.no_in_absorption = conf_i
