@@ -1,22 +1,24 @@
 #!/usr/bin/python3
 
 from __future__ import absolute_import, division, print_function
+import six
 from . import config
 import logging
-logger = logging.getLogger(__name__)
-
-import sys, os
+import os
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     from . import transformations as tx
 
+logger = logging.getLogger(__name__)
 
 """Maia detector class"""
+
 
 class Pad(object):
     """Represents a single detector pad. The pad is created in the
@@ -28,7 +30,7 @@ class Pad(object):
 
     Attributes
     ----------
-    id : int
+    ident : int
     width : float
     height : float
     pad_unit_normal : 3-element nd-array of floats; vector
@@ -46,12 +48,12 @@ class Pad(object):
     # create a pad with the same id twice.
     ids = set()
 
-    def __init__(self, id, pad_geometry, detector_centre_mm,
+    def __init__(self, ident, pad_geometry, detector_centre_mm,
                  detector_unit_normal):
         """
         Parameters
         ----------
-        id : int
+        ident : int
             pad id
         pad_geometry : tuple of floats
             (X, Y, Z, width, height)
@@ -68,14 +70,14 @@ class Pad(object):
         assert len(detector_centre_mm) == 3
         assert len(detector_unit_normal) == 3
         self.pad_unit_normal = (np.array(detector_unit_normal, dtype=float) /
-                                     np.linalg.norm(detector_unit_normal))
+                                np.linalg.norm(detector_unit_normal))
 
         # Verify that we haven't allocated this id previously
         ids_len = len(Pad.ids)
-        Pad.ids.add(id)
+        Pad.ids.add(ident)
         assert len(Pad.ids) == ids_len + 1, ids_len
 
-        self.id = id
+        self.ident = ident
         self.area_mm2 = width * height
 
         # On the next line, angle is the angle between the unit z-vector and
@@ -122,13 +124,13 @@ class Pad(object):
         h = self.height
         # pad corner coords in the pad coord system whose plane normal is 0,0,1
         vertices = np.transpose(np.array([
-            (cx + w / 2.0, cy + h / 2.0, cz, 1),    # corner 1
-            (cx - w / 2.0, cy + h / 2.0, cz, 1),    # corner 2
-            (cx + w / 2.0, cy - h / 2.0, cz, 1),    # corner 3
-            (cx - w / 2.0, cy - h / 2.0, cz, 1),    # corner 4
-            (cx,           cy,           cz, 1),    # centre
+            (cx + w / 2.0, cy + h / 2.0, cz, 1),  # corner 1
+            (cx - w / 2.0, cy + h / 2.0, cz, 1),  # corner 2
+            (cx + w / 2.0, cy - h / 2.0, cz, 1),  # corner 3
+            (cx - w / 2.0, cy - h / 2.0, cz, 1),  # corner 4
+            (cx, cy, cz, 1),  # centre
         ]))
-        t = np.dot(t, vertices)[:-1]    # transform and strip superfluous 1's
+        t = np.dot(t, vertices)[:-1]  # transform and strip superfluous 1's
         return np.transpose(t)
 
     def _get_pad_transform_matrix(self, detector_centre_mm):
@@ -136,7 +138,7 @@ class Pad(object):
 
         angle = tx.angle_between_vectors(nhat, self.pad_unit_normal)
         if (np.allclose(nhat, self.pad_unit_normal) or
-            np.allclose(-nhat, self.pad_unit_normal)):
+                np.allclose(-nhat, self.pad_unit_normal)):
             # vectors are parallel or antiparallel
             direction = np.array([1.0, 0.0, 0.0])
         else:
@@ -170,7 +172,7 @@ class Pad(object):
         n2 = np.abs(np.dot(np.cross(r2, r1), r3))
         d2 = np.dot(r1, r2) + np.dot(r2, r3) + np.dot(r3, r1) + 1.0
 
-        omega = 2.0 * (np.arctan(n1/d1) + np.arctan(n2/d2))
+        omega = 2.0 * (np.arctan(n1 / d1) + np.arctan(n2 / d2))
         return omega
 
     def show3d(self, show_id=False):
@@ -190,16 +192,16 @@ class Pad(object):
 
         """
         x, y, z = self.vertices.T
-        triangles = [(0,1,2), (1,2,3)]
+        triangles = [(0, 1, 2), (1, 2, 3)]
         mlab.triangular_mesh(x, y, z, triangles)
         if show_id:
             cx, cy, cz = self.pad_centre_xyz + self.pad_unit_normal * 0.1
             # orientation are angles "referenced to the z axis"
-            mlab.text3d(cx, cy, cz, str(self.id), scale=0.2,
+            mlab.text3d(cx, cy, cz, str(self.ident), scale=0.2,
                         orient_to_camera=True,
                         # orient_to_camera=False,
                         # orientation=tx.euler_from_matrix(self.T),
-            )
+                        )
 
 
 class Singleton(object):
@@ -215,17 +217,18 @@ class Singleton(object):
         cls.__it__ = it = object.__new__(cls)
         it.init(*args, **kwds)
         return it
+
     def init(self, *args, **kwds):
         pass
 
 
-# class Maia(object):
 class Maia(Singleton):
     """Represents the detector geometry and provides visualisation routines.
     We want this to be a proper singleton class.
 
     """
-    def __init__(self, centre_mm=(0,0,10.0), unit_normal=(0,0,1)):
+
+    def __init__(self, centre_mm=(0, 0, 10.0), unit_normal=(0, 0, 1)):
         """
         Parameters
         ----------
@@ -233,9 +236,6 @@ class Maia(Singleton):
             Detector face centre (x, y, z) coords in mm
         unit_normal : array-like
             Unit vector perpendicular to detector face
-        path : str
-            Path to csv file containing detector pad data in Chris Ryan's Maia
-            data csv format
 
         """
         assert len(centre_mm) == 3
@@ -245,8 +245,8 @@ class Maia(Singleton):
         path = config.detector_csv
         self.maia_data = pd.read_csv(path, index_col='Data',
                                      skipinitialspace=True, header=12)
-        self.unit_normal = (np.array(unit_normal, dtype=float) /
-                                np.linalg.norm(unit_normal))
+        self.unit_normal = (np.array(unit_normal, dtype=float)
+                            / np.linalg.norm(unit_normal))
         self.centre_mm = centre_mm
         self.pads = self.make_pads(self.maia_data, centre_mm, unit_normal)
 
@@ -263,14 +263,14 @@ class Maia(Singleton):
 
         """
         pads = {}
-        for id, p in maia_data.iterrows():
+        for ident, p in maia_data.iterrows():
             pad_geometry = (p.X, p.Y, p.Z, p.width, p.height)
-            pads[id] = Pad(id, pad_geometry, maia_centre_mm, maia_unit_normal)
+            pads[ident] = Pad(ident, pad_geometry, maia_centre_mm, maia_unit_normal)
         return pads
 
     def show3d(self, *args, **kwargs):
         # Show pads
-        for p in self.pads.itervalues():
+        for p in six.itervalues(self.pads):
             p.show3d(*args, **kwargs)
 
         # Show origin (0,0,0)
@@ -346,11 +346,11 @@ class Maia(Singleton):
         return self.maia_data[(self.maia_data.Row == row) &
                               (self.maia_data.Column == col)]
 
-    def area(self, id):
+    def area(self, ident):
         """Return area of maia element row, col
 
         """
-        return self.pads[id].area_mm2
+        return self.pads[ident].area_mm2
 
     def yx(self, row, col):
         """Return (Y, X) centre coords (mm) of maia element row, col
@@ -445,8 +445,7 @@ if __name__ == '__main__':
     # det = Maia(centre_mm=(5,5,0), unit_normal=(0,-1,0))
     # det = Maia(centre_mm=(0,0,10), unit_normal=(-1,0,-1))
 
-    det = Maia(centre_mm=(0,0,-10), unit_normal=(0,0,1),
-               path=config.detector_csv)
+    det = Maia(centre_mm=(0, 0, -10), unit_normal=(0, 0, 1))
 
     det.show3d(show_id=True)
     mlab.show()

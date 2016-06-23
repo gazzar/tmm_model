@@ -3,24 +3,27 @@
 from __future__ import absolute_import, division, print_function
 from . import config
 import logging
-logger = logging.getLogger(__name__)
 import skimage.transform as st
+import os
+import fnmatch
+import re
+import numpy as np
+import scipy.ndimage as nd
+import matplotlib.pyplot as plt
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from . import tifffile
+    from skimage.io import imsave, imread
+
 try:
     from skimage.measure import compare_ssim
     mssim_version = "new"
 except ImportError:
     from skimage.measure import structural_similarity as compare_ssim
     mssim_version = "old"
-import os
-import numpy as np
-import scipy.ndimage as nd
-import matplotlib.pyplot as plt
-import fnmatch, re
-import warnings
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    from . import tifffile
-    from skimage.io import imsave, imread
+
+logger = logging.getLogger(__name__)
 
 
 def write_tiff32(filename, im):
@@ -85,11 +88,11 @@ def zero_outside_circle(im, symmetric=True, tolerance=0.0):
     """
     im = im.copy()
     rows, cols = im.shape
-    assert rows==cols
+    assert rows == cols
     side = rows
 
     if symmetric:
-        s =  (side - 1) / 2.
+        s = (side - 1) / 2.
         mask = np.hypot(*np.ogrid[-s:s + 1, -s:s + 1]) > s + tolerance + 1
         im[mask] = 0.0
     else:
@@ -109,9 +112,9 @@ def zero_outside_mask(im, mask):
 
     """
     s = nd.generate_binary_structure(2, 2)      # 8-connected structure element
-    mask = (mask==mask[0,0])
+    mask = (mask == mask[0, 0])
     la, _ = nd.label(mask, structure=s)
-    im[la==la[0,0]] = 0.0
+    im[la == la[0, 0]] = 0.0
 
 
 def imshow(im, show=False, cmap='gray', **kwargs):
@@ -138,8 +141,6 @@ def rotate(im, angle):
     -------
 
     """
-    import scipy.ndimage as sn
-
     assert issubclass(im.dtype.type, np.floating)
 
     implementation = config.iradon_implementation
@@ -261,10 +262,12 @@ def mssim(im1, im2):
     """
     im1 = im1.astype(np.float32)
     im2 = im2.astype(np.float32)
+    assert mssim_version in {'old', 'new'}
     if mssim_version == 'old':
         mssim_kwargs = {}
-    elif mssim_version == 'new':
-        mssim_kwargs = {'gaussian_weights':True, 'sigma':1.5, 'use_sample_covariance':False}
+    else:
+        mssim_kwargs = {'gaussian_weights': True,
+                        'sigma': 1.5, 'use_sample_covariance': False}
     return compare_ssim(im1, im2, **mssim_kwargs)
 
 

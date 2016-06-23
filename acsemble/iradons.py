@@ -3,15 +3,15 @@
 from __future__ import absolute_import, division, print_function
 from . import config
 import logging
-logger = logging.getLogger(__name__)
-
+import os
+import fnmatch
+import subprocess
 import numpy as np
 import skimage.transform as st
-import os
-import subprocess
 import imageio
-import fnmatch
 from . import helpers
+
+logger = logging.getLogger(__name__)
 
 UM_PER_CM = 1e4
 
@@ -57,47 +57,47 @@ def iradon_absorption(sino, angles):
     2d ndarray of float32's
 
     """
-    outdir = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA     # output directory
-    indir = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS     # input directory
+    outdir = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA  # output directory
+    indir = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS  # input directory
     base_filename = 'temp_sino.tif'
 
     def xtract_exe_string(filename, indir, outdir, angles, ps,
                           xlict_recon_mpi_fbp_filter='ramp'):
         assert xlict_recon_mpi_fbp_filter in {'ramp', 'shepp-logan', 'cosine',
-                                                     'hamming', 'hann', 'none'}
+                                              'hamming', 'hann', 'none'}
         # lookup dict for reconstruction filter type and filter enable flag
         filter_control = {
-            'ramp' : (0, 1),
-            'shepp-logan' : (1, 1),
-            'cosine' : (2, 1),
-            'hamming' : (3, 1),
-            'hann' : (4, 1),
-            'none' : (0, 0),
+            'ramp': (0, 1),
+            'shepp-logan': (1, 1),
+            'cosine': (2, 1),
+            'hamming': (3, 1),
+            'hann': (4, 1),
+            'none': (0, 0),
         }
 
         recon_filter, filter_enable = filter_control[xlict_recon_mpi_fbp_filter]
         implementation = 'xlict_recon_mpi_fbp'
-        rm = {'xlict_recon_mpi_fbp':0, 'xlict_recon_gridrec':1}[implementation]
+        rm = {'xlict_recon_mpi_fbp': 0, 'xlict_recon_gridrec': 1}[implementation]
         xtract_options = \
             r'-id {indir} --sino {prg} -od {outdir} -pfct r_.tif -rmu 1 ' \
             r'-e {e_keV} --recon_method {rm} -fr {recon_filter} ' \
             r'-as {astep} --recon_filter_enabled {filter_enable} ' \
             r'-ps {ps} -corm {corm} --force_cpu {force_cpu}'.format(
-                indir = indir,
-                prg = filename,                     # read file name
-                outdir = outdir,
-                e_keV = config.energy_keV,
-                rm = rm,                            # 0 (FBP), 1 (Gridrec)
-                recon_filter = recon_filter,
-                filter_enable = filter_enable,
-                astep = angles[1] - angles[0],      # Angle step (deg)
-                ps = ps,                            # pixel size (um)
-                force_cpu = config.xlict_force_cpu,
-                corm = config.xlict_recon_mpi_corm, # centre-of-rot'n offset
+                indir=indir,
+                prg=filename,  # read file name
+                outdir=outdir,
+                e_keV=config.energy_keV,
+                rm=rm,  # 0 (FBP), 1 (Gridrec)
+                recon_filter=recon_filter,
+                filter_enable=filter_enable,
+                astep=angles[1] - angles[0],  # Angle step (deg)
+                ps=ps,  # pixel size (um)
+                force_cpu=config.xlict_force_cpu,
+                corm=config.xlict_recon_mpi_corm,  # centre-of-rot'n offset
             )
         return xtract_options
 
-    sino = sino.T                   # orient sinogram axes to what X-TRACT expects
+    sino = sino.T  # orient sinogram axes to what X-TRACT expects
     # write to disk for XTRACT
     filename = os.path.join(indir, base_filename)
     imageio.imsave(filename, sino.astype(np.float32))
@@ -107,7 +107,7 @@ def iradon_absorption(sino, angles):
     PATH_XTRACT_EXE = config.xlict_recon_mpi_exe
     with open(os.devnull, 'w') as fnull:
         _ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
-                                   stdout=fnull, stderr=subprocess.STDOUT)
+                            stdout=fnull, stderr=subprocess.STDOUT)
 
     im = imageio.imread(os.path.join(outdir, 'r_0.tif')).astype(np.float32)
     # Reorient the reconstruction to match the convention established by other
@@ -127,7 +127,7 @@ def iradon_absorption(sino, angles):
         else:
             # files exist matching r_nnn.tif; get the highest and add 1
             nnn = int(matches[-1][2:5])
-            dest = 'r_%03d.tif' % (nnn+1)
+            dest = 'r_%03d.tif' % (nnn + 1)
         imageio.imsave(os.path.join(outdir, dest), im.astype(np.float32))
 
     # im *= 1e-4  # This factor was determined by direct comparison with iradon above
@@ -166,48 +166,48 @@ def iradon(sino, angles, filter='none'):
     elif implementation == 'skimage_iradon_sart':
         # Clip solution to positive values. MLEM requires this.
         im = st.iradon_sart(sino, theta=angles,
-                            clip=(1e-6, sino.max()*sino.shape[0]*sino.shape[1]))
+                            clip=(1e-6, sino.max() * sino.shape[0] * sino.shape[1]))
 
     elif implementation in ('xlict_recon_mpi_fbp', 'xlict_recon_gridrec'):
-        outdir = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA     # output directory
-        indir = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS     # input directory
+        outdir = config.xlict_recon_mpi_fbp_PATH_OUTPUT_DATA  # output directory
+        indir = config.xlict_recon_mpi_fbp_PATH_INPUT_TIFFS  # input directory
         base_filename = 'temp_sino.tif'
 
         def xtract_exe_string(filename, indir, outdir, angles, ps):
             assert filter in {'ramp', 'shepp-logan', 'cosine',
-                                    'hamming', 'hann', 'none'}
+                              'hamming', 'hann', 'none'}
             # lookup dict for reconstruction filter type and filter enable flag
             filter_control = {
-                'ramp' : (0, 1),
-                'shepp-logan' : (1, 1),
-                'cosine' : (2, 1),
-                'hamming' : (3, 1),
-                'hann' : (4, 1),
-                'none' : (0, 0),
+                'ramp': (0, 1),
+                'shepp-logan': (1, 1),
+                'cosine': (2, 1),
+                'hamming': (3, 1),
+                'hann': (4, 1),
+                'none': (0, 0),
             }
 
             recon_filter, filter_enable = filter_control[filter]
-            rm = {'xlict_recon_mpi_fbp':0, 'xlict_recon_gridrec':1}[implementation]
+            rm = {'xlict_recon_mpi_fbp': 0, 'xlict_recon_gridrec': 1}[implementation]
             xtract_options = \
                 r'-id {indir} --sino {prg} -od {outdir} -pfct r_.tif -rmu 1 ' \
                 r'-e {e_keV} --recon_method {rm} -fr {recon_filter} ' \
                 r'-as {astep} --recon_filter_enabled {filter_enable} ' \
                 r'-ps {ps} -corm {corm} --force_cpu {force_cpu}'.format(
-                    indir = indir,
-                    prg = filename,                     # read file name
-                    outdir = outdir,
-                    e_keV = config.energy_keV,
-                    rm = rm,                            # 0 (FBP), 1 (Gridrec)
-                    recon_filter = recon_filter,
-                    filter_enable = filter_enable,
-                    astep = angles[1] - angles[0],      # Angle step (deg)
-                    ps = ps,                            # pixel size (um)
-                    force_cpu = config.xlict_force_cpu,
-                    corm = config.xlict_recon_mpi_corm, # centre-of-rot'n offset
+                    indir=indir,
+                    prg=filename,  # read file name
+                    outdir=outdir,
+                    e_keV=config.energy_keV,
+                    rm=rm,  # 0 (FBP), 1 (Gridrec)
+                    recon_filter=recon_filter,
+                    filter_enable=filter_enable,
+                    astep=angles[1] - angles[0],  # Angle step (deg)
+                    ps=ps,  # pixel size (um)
+                    force_cpu=config.xlict_force_cpu,
+                    corm=config.xlict_recon_mpi_corm,  # centre-of-rot'n offset
                 )
             return xtract_options
 
-        sino = sino.T                   # orient sinogram axes to what X-TRACT expects
+        sino = sino.T  # orient sinogram axes to what X-TRACT expects
         # write to disk for XTRACT
         filename = os.path.join(indir, base_filename)
         imageio.imsave(filename, sino.astype(np.float32))
@@ -217,7 +217,7 @@ def iradon(sino, angles, filter='none'):
         PATH_XTRACT_EXE = config.xlict_recon_mpi_exe
         with open(os.devnull, 'w') as fnull:
             _ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
-                                       stdout=fnull, stderr=subprocess.STDOUT)
+                                stdout=fnull, stderr=subprocess.STDOUT)
 
         im = imageio.imread(os.path.join(outdir, 'r_0.tif')).astype(np.float32)
         # Reorient the reconstruction to match the convention established by other
@@ -237,7 +237,7 @@ def iradon(sino, angles, filter='none'):
             else:
                 # files exist matching r_nnn.tif; get the highest and add 1
                 nnn = int(matches[-1][2:5])
-                dest = 'r_%03d.tif' % (nnn+1)
+                dest = 'r_%03d.tif' % (nnn + 1)
             imageio.imsave(os.path.join(outdir, dest), im.astype(np.float32))
 
         im *= 5e-5  # This factor was determined by direct comparison with iradon above
@@ -258,4 +258,4 @@ if __name__ == "__main__":
     im2 = iradon(p, angles)
     print(im1)
     print(im2)
-    print('scale_factor =', im1/im2)
+    print('scale_factor =', im1 / im2)
