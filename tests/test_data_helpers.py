@@ -6,8 +6,10 @@ import context
 import acsemble
 from nose.tools import assert_raises
 import unittest
-from acsemble import config
 from acsemble import data_helpers
+from acsemble import config
+def setup_module():
+    config.config_init()
 
 
 @unittest.skip('')

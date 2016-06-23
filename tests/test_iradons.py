@@ -5,8 +5,11 @@ import six
 import context
 import unittest
 import numpy as np
+from acsemble import config
 from acsemble import iradons
 
+def setup_module():
+    config.config_init()
 
 if __name__ == "__main__" :
     import sys

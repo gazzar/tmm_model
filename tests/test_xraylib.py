@@ -4,6 +4,9 @@ from __future__ import absolute_import, division, print_function
 import six
 import context
 import xraylib as xrl
+from acsemble import config
+def setup_module():
+    config.config_init()
 
 
 def test_xraylib_installed():

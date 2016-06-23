@@ -29,7 +29,7 @@ class MatchPatternTests(unittest.TestCase):
         self.assertSequenceEqual(matches, [])
 
 def test_match_path_pattern():
-    matches = helpers.match_path_pattern('x/y\\a*z', ['x/y\\abz'])
+    matches = helpers.match_pattern('x/y\\a*z', ['x/y\\abz'])
     assert(matches == [(os.path.join('x', 'y', 'abz'), 'b')])
 
 if __name__ == "__main__" :

@@ -5,7 +5,8 @@ import six
 import context
 from nose.tools import assert_raises
 from acsemble import config
-
+def setup_module():
+    config.config_init()
 
 def test_config_version():
     assert config.yaml_config_version == 0.1
@@ -13,7 +14,7 @@ def test_config_version():
 def test_config_update():
     assert_raises(AttributeError, lambda: config.new_key == 'new_value')
     new_item = {'new_key': 'new_value'}
-    config.update(new_item)
+    config.update_config(new_item)
     assert config.new_key == 'new_value'
 
 

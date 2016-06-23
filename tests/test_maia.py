@@ -11,6 +11,10 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import acsemble.transformations as tx
 import numpy as np
+from acsemble import config
+
+def setup_module():
+    config.config_init()
 
 
 MD_DATA = 'mask-Mo-3x100-R-10-T-04-gap-75-grow-09-tune-103-safe-01-glue-025-1.csv'
@@ -90,7 +94,7 @@ class PadTests(unittest.TestCase):
         self.pad_geometry = (0, 0, 0, 1, 1)  # x,y,z,w,h
 
     def test_null_transform(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, 0, 0],
                        detector_unit_normal=[0, 0, 1])
         r = self.pad._get_pad_transform_matrix(detector_centre_mm=[0, 0, 0])
@@ -100,7 +104,7 @@ class PadTests(unittest.TestCase):
     def test_rotation(self):
         # Check that rotation matrix calculated to reorient pad matches the
         # expected coordinate system of the transformations.py module.
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, 0, 0],
                        detector_unit_normal=[0, 1, 0])
         r = self.pad._get_pad_transform_matrix(detector_centre_mm=[0, 0, 0])
@@ -111,40 +115,40 @@ class PadTests(unittest.TestCase):
         tx_r2 = tx.rotation_matrix(np.pi/2, [-1,0,0])
 
     def test_spherical_from_cartesian1(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, 0, 1],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, 0.0)
 
     def test_spherical_from_cartesian2(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[1, 0, 0],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, np.pi/2)
         self.assertAlmostEqual(self.pad.phi, 0.0)
 
     def test_spherical_from_cartesian3(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, 1, 0],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, np.pi/2)
         self.assertAlmostEqual(self.pad.phi, np.pi/2)
 
     def test_spherical_from_cartesian4(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, 0, -1],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, np.pi)
 
     def test_spherical_from_cartesian5(self):
-        self.pad = Pad(id=1, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=1, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[-1, 0, 0],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, np.pi/2)
         self.assertAlmostEqual(self.pad.phi, np.pi)
 
     def test_spherical_from_cartesian6(self):
-        self.pad = Pad(id=8, pad_geometry=self.pad_geometry,
+        self.pad = Pad(ident=8, pad_geometry=self.pad_geometry,
                        detector_centre_mm=[0, -1, 0],
                        detector_unit_normal=[0, 0, 1])
         self.assertAlmostEqual(self.pad.theta, np.pi/2)
@@ -235,7 +239,7 @@ class SolidAngleTests(unittest.TestCase):
 
         # get solid angle of a corresponding rectangle crossing the origin
         pad_geometry = (0, 0, 0, 4.0, 2.0)  # x,y,z,w,h
-        p = Pad(id=384, pad_geometry=pad_geometry,
+        p = Pad(ident=384, pad_geometry=pad_geometry,
                 detector_centre_mm=[0, 0, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa5 = p.solid_angle()
@@ -250,7 +254,7 @@ class SolidAngleTests(unittest.TestCase):
 
         # get solid angle of a corresponding rectangle crossing the origin
         pad_geometry = (0, 0, 0, 1.0, 1.0)  # x,y,z,w,h
-        p = Pad(id=384, pad_geometry=pad_geometry,
+        p = Pad(ident=384, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.5, 0.5, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa5 = p.solid_angle()
@@ -260,14 +264,14 @@ class SolidAngleTests(unittest.TestCase):
     def test_sa_rect7(self):
         # get solid angle of a rectangle
         pad_geometry = (0.5, 0.5, 0, 1.0, 1.0)  # x,y,z,w,h
-        p = Pad(id=385, pad_geometry=pad_geometry,
+        p = Pad(ident=385, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.0, 0.0, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa1 = p.solid_angle()
 
         # get solid angle of a corresponding rectangle oriented towards the same
         # sphere centre
-        p = Pad(id=386, pad_geometry=pad_geometry,
+        p = Pad(ident=386, pad_geometry=pad_geometry,
                 detector_centre_mm=[self.d_mm, 0.0, 0.0],
                 detector_unit_normal=[1, 0, 0])
         sa2 = p.solid_angle()
@@ -275,7 +279,7 @@ class SolidAngleTests(unittest.TestCase):
 
         # get solid angle of a corresponding rectangle oriented towards the same
         # sphere centre
-        p = Pad(id=387, pad_geometry=pad_geometry,
+        p = Pad(ident=387, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.0, 0.0, -self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa3 = p.solid_angle()
@@ -285,14 +289,14 @@ class SolidAngleTests(unittest.TestCase):
     def test_sa_rect8(self):
         # get solid angle of a rectangle
         pad_geometry = (0, 0, 0, 2.0, 2.0)  # x,y,z,w,h
-        p = Pad(id=384, pad_geometry=pad_geometry,
+        p = Pad(ident=384, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.0, 0.5, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa1 = p.solid_angle()
 
         # get solid angle of a corresponding rectangle oriented towards the same
         # sphere centre
-        p = Pad(id=385, pad_geometry=pad_geometry,
+        p = Pad(ident=385, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.5, 0.0, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa2 = p.solid_angle()
@@ -307,7 +311,7 @@ class SolidAngleTests(unittest.TestCase):
 
         # get solid angle of a corresponding rectangle crossing the origin
         pad_geometry = (0.5, 0.5, 0, 1.0, 1.0)  # x,y,z,w,h
-        p = Pad(id=384, pad_geometry=pad_geometry,
+        p = Pad(ident=384, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.0, 0.0, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa2 = p.solid_angle()
@@ -316,7 +320,7 @@ class SolidAngleTests(unittest.TestCase):
 
         # get solid angle of a corresponding rectangle crossing the origin
         pad_geometry = (0.0, 0.0, 0, 1.0, 1.0)  # x,y,z,w,h
-        p = Pad(id=385, pad_geometry=pad_geometry,
+        p = Pad(ident=385, pad_geometry=pad_geometry,
                 detector_centre_mm=[0.5, 0.5, self.d_mm],
                 detector_unit_normal=[0, 0, 1])
         sa3 = p.solid_angle()

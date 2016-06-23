@@ -7,6 +7,10 @@ import unittest
 import os
 from acsemble.phantom import Phantom2d
 import numpy as np
+from acsemble import config
+def setup_module():
+    config.config_init()
+
 
 PATH_HERE = os.path.abspath(os.path.dirname(__file__))
 GOLOSIO_MAP = os.path.join(PATH_HERE, '..', 'acsemble', 'data', 'golosio_100.png')

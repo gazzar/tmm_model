@@ -6,6 +6,9 @@ import context
 import unittest
 import numpy as np
 from acsemble import mlem_reconstruction
+from acsemble import config
+def setup_module():
+    config.config_init()
 
 
 def test_noisify():
