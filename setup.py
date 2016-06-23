@@ -22,6 +22,11 @@ setup(
         'recipy>=0.2.3',
         'profilehooks==1.8.1',
         'imageio==1.5',
-        'progressbar2==3.7.0'
+        'progressbar2==3.7.0',
+        'appdirs==1.4.0',
+        'numpy',
+        'scipy',
+        'pandas',
+        'matplotlib',
     ],
 )
