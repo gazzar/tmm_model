@@ -5,16 +5,20 @@ import ruamel.yaml as yaml
 from appdirs import AppDirs
 import logging
 import logging.config
-logger = logging.getLogger(__name__)
 import textwrap
 from . import version
+
+logger = logging.getLogger(__name__)
 
 
 ENV_NAME = 'ACSEMBLE_CONFIG'
 CONFIG_NAME = 'acsemble.yaml'
 config_dict = {}
 
-def config_init():
+
+def config_init(local_config_file=None):
+    global config_dict
+
     def _open_first_config(filelist):
         for f in filelist:
             try:
@@ -24,10 +28,15 @@ def config_init():
                 continue
         raise OSError
 
-    def _expand_env_var(self, env_var):
+    def _expand_env_var(env_var):
         """Expands (potentially nested) env vars by repeatedly applying
         `expandvars` and `expanduser` until interpolation stops having
         any effect.
+
+        Args:
+            env_var: str
+
+        Returns:
 
         """
         if not env_var:
@@ -40,9 +49,10 @@ def config_init():
                 env_var = interpolated
 
     # populate module namespace with default config settings
-    config_dict = yaml.load(default())
-    update(config_dict)
+    config_updates = yaml.load(default())
+    update_config(config_updates)
 
+    # override default config settings if requested
     dirs = AppDirs(version.__name__)
     if ENV_NAME not in os.environ:
         try:
@@ -50,13 +60,22 @@ def config_init():
                 os.path.join(os.getcwd(), CONFIG_NAME),
                 os.path.join(dirs.user_config_dir, CONFIG_NAME),
             ])
-            print('Reading config from {}'.format(config_filename))
-            update_from_file(config_filename)
+            update_config_from_file(config_filename)
         except OSError:
             print('Using default config')
-            pass
     else:
-        update_from_file(_expand_env_var(os.environ[ENV_NAME]))
+        update_config_from_file(_expand_env_var(os.environ[ENV_NAME]))
+    # Apply commandline-specified config overrides
+    if local_config_file is not None:
+        try:
+            update_config_from_file(local_config_file)
+        except OSError:
+            print('{} not found; using default config'.format(local_config_file))
+
+    # Start the logger and recipy if enabled
+
+    set_logger(verbose=True)
+    import_recipy()
 
 
 def default():
@@ -198,6 +217,7 @@ def ensure_dir_exists(d):
 
 
 def set_logger(verbose):
+    global config_dict
     dirs = AppDirs(version.__name__)
     ensure_dir_exists(dirs.user_config_dir)
 
@@ -207,9 +227,44 @@ def set_logger(verbose):
         logging.getLogger().setLevel(logging.DEBUG)
 
 
-def update(config):
-    config_dict.update(config)
-    globals().update(config)
+def update_dict(dct, merge_dct):
+    """Paul Durivage's recursive dict merge:
+        https://gist.github.com/angstwad/bf22d1822c38a92ec0a9
+    Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
+    updating only top-level keys, dict_merge recurses down into dicts nested
+    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
+    ``dct``.
+    Note, I also consulted these, which aren't sufficient.
+    http://stackoverflow.com/q/3232943
+    http://stackoverflow.com/q/7204805
+
+    Args:
+        dct: dict onto which the merge is executed
+        merge_dct: dct merged into dct
+
+    Returns:
+        None
+
+    """
+    for k, v in six.iteritems(merge_dct):
+        if k in dct and isinstance(dct[k], dict) and isinstance(merge_dct[k], dict):
+            update_dict(dct[k], merge_dct[k])
+        else:
+            dct[k] = merge_dct[k]
+
+
+def update_config(config):
+    global config_dict
+
+    update_dict(config_dict, config)
+    update_dict(globals(), config)
+
+
+def update_config_from_file(filename):
+    with open(filename, 'r') as config_file:
+        config_updates = yaml.load(config_file.read())
+        update_config(config_updates)
+        print('Updating config from {}'.format(filename))
 
 
 def write_config(filename):
@@ -223,35 +278,9 @@ def write_config(filename):
         yaml.dump(config_dict, f)
 
 
-def update_from_file(filename):
-    with open(filename, 'r') as config_file:
-        update(yaml.load(config_file.read()))
-        print('Updating config from {}'.format(filename))
-
-    try:
-        config_dict['logging_config']['handlers']['file']['filename'] = config_dict['logger_path']
-        set_logger(verbose=True)
-    except KeyError:
-        pass
-
-    import_recipy()
-
-
 def import_recipy():
     if config_dict['use_recipy']:
         try:
             import recipy
         except ImportError:
             logger.info('Install recipy or change the use_recipy config setting to False')
-
-
-#-----------------------------------------
-# The following code is called on import
-#-----------------------------------------
-
-config_init()
-
-# logger_path and use_recipy have now been created in this module's namespace by update()
-
-set_logger(verbose=True)
-import_recipy()
