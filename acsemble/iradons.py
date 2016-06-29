@@ -8,7 +8,6 @@ import fnmatch
 import subprocess
 import numpy as np
 import skimage.transform as st
-import imageio
 from . import helpers
 
 logger = logging.getLogger(__name__)
@@ -100,7 +99,7 @@ def iradon_absorption(sino, angles):
     sino = sino.T  # orient sinogram axes to what X-TRACT expects
     # write to disk for XTRACT
     filename = os.path.join(indir, base_filename)
-    imageio.imsave(filename, sino.astype(np.float32))
+    helpers.write_tiff32(filename, sino)
 
     # reconstruct (XLI/XTRACT writes the result to disk), then read result from disk
     xes = xtract_exe_string(base_filename, indir, outdir, angles, ps=1)
@@ -109,7 +108,7 @@ def iradon_absorption(sino, angles):
         _ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
                             stdout=fnull, stderr=subprocess.STDOUT)
 
-    im = imageio.imread(os.path.join(outdir, 'r_0.tif')).astype(np.float32)
+    im = helpers.read_tiff32(os.path.join(outdir, 'r_0.tif'))
     # Reorient the reconstruction to match the convention established by other
     # reconstructors here.
     im = np.rot90(im)
@@ -128,7 +127,7 @@ def iradon_absorption(sino, angles):
             # files exist matching r_nnn.tif; get the highest and add 1
             nnn = int(matches[-1][2:5])
             dest = 'r_%03d.tif' % (nnn + 1)
-        imageio.imsave(os.path.join(outdir, dest), im.astype(np.float32))
+        helpers.write_tiff32(os.path.join(outdir, dest), im)
 
     # im *= 1e-4  # This factor was determined by direct comparison with iradon above
 
@@ -210,7 +209,7 @@ def iradon(sino, angles, filter='none'):
         sino = sino.T  # orient sinogram axes to what X-TRACT expects
         # write to disk for XTRACT
         filename = os.path.join(indir, base_filename)
-        imageio.imsave(filename, sino.astype(np.float32))
+        helpers.write_tiff32(filename, sino)
 
         # reconstruct (XLI/XTRACT writes the result to disk), then read result from disk
         xes = xtract_exe_string(base_filename, indir, outdir, angles, ps=1)
@@ -219,7 +218,7 @@ def iradon(sino, angles, filter='none'):
             _ = subprocess.call('{} {}'.format(PATH_XTRACT_EXE, xes),
                                 stdout=fnull, stderr=subprocess.STDOUT)
 
-        im = imageio.imread(os.path.join(outdir, 'r_0.tif')).astype(np.float32)
+        im = helpers.read_tiff32(os.path.join(outdir, 'r_0.tif'))
         # Reorient the reconstruction to match the convention established by other
         # reconstructors here.
         im = np.rot90(im)
@@ -238,7 +237,7 @@ def iradon(sino, angles, filter='none'):
                 # files exist matching r_nnn.tif; get the highest and add 1
                 nnn = int(matches[-1][2:5])
                 dest = 'r_%03d.tif' % (nnn + 1)
-            imageio.imsave(os.path.join(outdir, dest), im.astype(np.float32))
+            helpers.write_tiff32(os.path.join(outdir, dest), im)
 
         im *= 5e-5  # This factor was determined by direct comparison with iradon above
 

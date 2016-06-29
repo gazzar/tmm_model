@@ -15,7 +15,6 @@ from . import config
 import logging
 import os
 import numpy as np
-from imageio import imread
 from skimage import img_as_ubyte
 from skimage.transform import rotate
 import matplotlib.pyplot as plt
@@ -231,7 +230,7 @@ class Phantom2d(object):
 
         """
         try:
-            im = imread(filename)
+            im = read_tiff32(filename)
             if len(im.shape) == 3:
                 # RGBA greyscale image; just use the 'R' layer
                 im = im[:, :, 0]
