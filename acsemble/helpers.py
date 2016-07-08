@@ -264,9 +264,9 @@ def chi2(im1, im2, mask=None, mask_zeros=True, epsilon=1e-18):
     if mask is None:
         mask = np.ones_like(im2, dtype=bool)
     if mask_zeros:
-        mask &= im2 < epsilon
+        mask &= im2 > epsilon
     a_diff = im1[mask] - im2[mask]
-    chisq = (a_diff ** 2 / im2).sum()
+    chisq = (a_diff ** 2 / im2[mask]).sum()
     return chisq
 
 

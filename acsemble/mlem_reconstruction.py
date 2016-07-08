@@ -69,6 +69,7 @@ class Mlem(object):
         self.backproject = backprojector
         self.angles = angles
         self.g_j = g_j
+        self.g_delta = np.zeros_like(g_j)
         self.epsilon = np.mean(np.abs(g_j)) / 1000.0
         self.sum_g_j = g_j.sum()
         self.i = 0
@@ -132,14 +133,27 @@ class Mlem(object):
         self.i += 1
 
     def _save_similarity_metrics(self):
-        im = self.f
+        im = self.g
         im_ref = self.reference_image
         mse = helpers.mse(im, im_ref)
         helpers.append_to_running_log(filename=config.mlem_mse_path,
                                       text='{:04}\t{}\n'.format(self.i, mse))
+        mse_delta = helpers.mse(im, self.g_delta)
+        helpers.append_to_running_log(filename=config.mlem_mse_delta_path,
+                                      text='{:04}\t{}\n'.format(self.i, mse_delta))
         mssim = helpers.mssim(im, im_ref)
         helpers.append_to_running_log(filename=config.mlem_mssim_path,
                                       text='{:04}\t{}\n'.format(self.i, mssim))
+        tv1 = helpers.tv(im, order=1)
+        helpers.append_to_running_log(filename=config.mlem_tv1_path,
+                                      text='{:04}\t{}\n'.format(self.i, tv1))
+        tv2 = helpers.tv(im, order=2)
+        helpers.append_to_running_log(filename=config.mlem_tv2_path,
+                                      text='{:04}\t{}\n'.format(self.i, tv2))
+        chi2 = helpers.chi2(im, im_ref)
+        helpers.append_to_running_log(filename=config.mlem_chi2_path,
+                                      text='{:04}\t{}\n'.format(self.i, chi2))
+        self.g_delta = im.copy()
 
     def _imshow(self, im, show=True):
         plt.figure()
