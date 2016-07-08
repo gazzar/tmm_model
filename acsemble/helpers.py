@@ -239,6 +239,37 @@ def mse(im1, im2, mask=None):
     return np.dot(a_diff, a_diff)/a_diff.size
 
 
+def chi2(im1, im2, mask=None, mask_zeros=True, epsilon=1e-18):
+    """Returns chi2 of masked regions of im1 as it compares to a reference image im2.
+    This is the one-way chi2 metric, which typically assumes data are binned. Doing so to an
+    image would avoid the metric blowing up when it encounters zeros in the im2 "expected"
+    or reference image.
+
+    Args:
+        im1: 2d ndarray of float
+        im2: 2d ndarray of float
+        mask: 2d ndarray of bool whose shape matches im1 and im2
+            If None, the mask is not applied.
+        mask_zeros: bool
+            If True, applies a mask which is False wherever im2==0, True elsewhere, and
+            logically ANDs this with mask.
+        epsilon: float (default 1e-18)
+            A small, positive value below which values are to be treated as zero
+
+    Returns:
+        chi2 metric
+
+    """
+    assert im1.shape == im2.shape
+    if mask is None:
+        mask = np.ones_like(im2, dtype=bool)
+    if mask_zeros:
+        mask &= im2 < epsilon
+    a_diff = im1[mask] - im2[mask]
+    chisq = (a_diff ** 2 / im2).sum()
+    return chisq
+
+
 def mssim(im1, im2):
     """Return mean structural similarity index of im1 and im2
     According to Notes in
@@ -269,6 +300,38 @@ def mssim(im1, im2):
         mssim_kwargs = {'gaussian_weights': True,
                         'sigma': 1.5, 'use_sample_covariance': False}
     return compare_ssim(im1, im2, **mssim_kwargs)
+
+
+def tv(u, order=1):
+    """Returns the total variation (TV) or BV seminorm of an array u, as defined by
+    Osher et al. (2005).
+    TV = |u|_{BV} = \int_\Omega |\nabla u|
+
+    The gradient operator just applies a nearest-neighbour difference.
+    It seems that both L1- and L2-norms are used for definitions of the |\cdot| operator in
+    TV; We default to the L1 norm definition. Note that Wikipedia posits that |\cdot| is
+    the L2-norm
+    https://en.wikipedia.org/wiki/Total_variation
+    However, from my assessment of the literature, both are used:
+    http://dsp.stackexchange.com/questions/16271
+
+    Args:
+        u: 2d ndarray of float
+        order: int (default = 1)
+            1 or 2
+
+    Returns:
+        float
+
+    """
+    dx = np.diff(u, axis=0)
+    dy = np.diff(u, axis=1)
+    assert order in {1, 2}
+    if order == 1:
+        tv = np.abs(dx).sum() + np.abs(dy).sum()
+    else:
+        tv = np.sqrt((dx**2).sum() + (dy**2).sum())
+    return tv
 
 
 def append_to_running_log(filename, text):
