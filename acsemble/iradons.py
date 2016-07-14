@@ -120,13 +120,13 @@ def iradon_absorption(sino, angles):
     # where nnn is the highest number in the existing files
     files = os.listdir(outdir)
     if 'r_0.tif' in files:
-        matches = sorted(fnmatch.filter(files, 'r_[0-9][0-9][0-9].tif'))
+        matches = sorted(fnmatch.filter(files, 'r_[0-9][0-9][0-9][0-9].tif'))
         if not matches:
-            dest = 'r_000.tif'
+            dest = 'r_0000.tif'
         else:
             # files exist matching r_nnn.tif; get the highest and add 1
             nnn = int(matches[-1][2:5])
-            dest = 'r_%03d.tif' % (nnn + 1)
+            dest = 'r_%04d.tif' % (nnn + 1)
         helpers.write_tiff32(os.path.join(outdir, dest), im)
 
     # im *= 1e-4  # This factor was determined by direct comparison with iradon above
@@ -230,13 +230,13 @@ def iradon(sino, angles, filter='none'):
         # where nnn is the highest number in the existing files
         files = os.listdir(outdir)
         if 'r_0.tif' in files:
-            matches = sorted(fnmatch.filter(files, 'r_[0-9][0-9][0-9].tif'))
+            matches = sorted(fnmatch.filter(files, 'r_[0-9][0-9][0-9][0-9].tif'))
             if not matches:
-                dest = 'r_000.tif'
+                dest = 'r_0000.tif'
             else:
                 # files exist matching r_nnn.tif; get the highest and add 1
                 nnn = int(matches[-1][2:5])
-                dest = 'r_%03d.tif' % (nnn + 1)
+                dest = 'r_%04d.tif' % (nnn + 1)
             helpers.write_tiff32(os.path.join(outdir, dest), im)
 
         im *= 5e-5  # This factor was determined by direct comparison with iradon above
