@@ -70,11 +70,15 @@ class Mlem(object):
         self.angles = angles
         self.g_j = g_j
         self.g_delta = np.zeros_like(g_j)
-        self.epsilon = np.mean(np.abs(g_j)) / 1000.0
+        # self.epsilon = np.mean(np.abs(g_j)) / 1000.0
+        self.epsilon = np.abs(g_j).mean() / len(angles) * 1e-10
         self.sum_g_j = g_j.sum()
         self.i = 0
+        self.g_clip_counter = 0
         # As per conventional MLEM, set initial self.f estimate to all ones to avoid bias.
-        self.f = np.ones((g_j.shape[0], g_j.shape[0]))           # units of self.f [g/cm3]
+        initial_estimate = np.ones((g_j.shape[0], g_j.shape[0]))   # units of self.f [g/cm3]
+        initial_estimate *= g_j.mean() / len(angles)            # scale to a ballpark value
+        self.f = initial_estimate
         self.weighting = backprojector(np.ones_like(g_j), angles) # units of weighting [???]
         # The backprojector forces 0's outside the inscribed circle after backprojection.
         # This will cause divide-by-zero errors if the numerator has zeros in this region.
@@ -98,6 +102,8 @@ class Mlem(object):
         # Note: The projector internally forces 0's outside the inscribed circle before
         # projecting.
         g = self.project(self.f, angles=self.angles)    # units of self.f [g/cm3], g [g/cm2]
+        g_clip_mask = (g > self.epsilon)
+        self.g_clip_counter = (~g_clip_mask).sum()
         g.clip(min=self.epsilon, out=g)
 
         # save diagnostics
@@ -110,19 +116,23 @@ class Mlem(object):
             self.imsave_d(im)
 
         # form parenthesised term (g_j / g) from (*)
-        r = self.g_j / g                                # units of r [dimensionless]
+        r = self.g_j / g                # units of r [dimensionless]
+        self.r = r                      # Save this for logging
         self.r_sum = r.sum()            # Store for stats output
         self.r_median = np.median(r)    # Store for stats output
+
+        if config.save_r_images:
+            self.imsave_r()
 
         # backproject to form \sum h * (g_j / g)
         # Note: The backprojector internally forces 0's outside the inscribed circle after
         # backprojection. That's OK here because it's on the numerator so won't cause
         # divide-by-zero.
-        g_r = self.backproject(r, angles=self.angles)   # units of g_r [???]
+        f_r = self.backproject(r, angles=self.angles)   # units of g_r [???]
 
         # Renormalise backprojected term / \sum h)
         # Normalise the individual pixels in the reconstruction
-        self.f *= g_r / self.weighting
+        self.f *= f_r / self.weighting
 
         if config.save_f_images:
             self.imsave_f()
@@ -153,6 +163,8 @@ class Mlem(object):
         chi2 = helpers.chi2(im, im_ref)
         helpers.append_to_running_log(filename=config.mlem_chi2_path,
                                       text='{:04}\t{}\n'.format(self.i, chi2))
+        helpers.append_to_running_log(filename=config.mlem_g_clip_count_path,
+                                      text='{:04}\t{}\n'.format(self.i, self.g_clip_counter))
         self.g_delta = im.copy()
 
     def _imshow(self, im, show=True):
@@ -182,13 +194,16 @@ class Mlem(object):
         helpers.write_tiff32(filename, im)
 
     def imsave_d(self, im):
-        self.imsave_dfg('mlem_d_%03d.tif', im)
+        self.imsave_dfg('mlem_d_%04d.tif', im)
 
     def imsave_f(self):
-        self.imsave_dfg('mlem_f_%03d.tif', self.f)
+        self.imsave_dfg('mlem_f_%04d.tif', self.f)
 
     def imsave_g(self):
-        self.imsave_dfg('mlem_g_%03d.tif', self.g)
+        self.imsave_dfg('mlem_g_%04d.tif', self.g)
+
+    def imsave_r(self):
+        self.imsave_dfg('mlem_r_%04d.tif', self.r)
 
     def set_reference_image(self, im):
         self.reference_image = im
