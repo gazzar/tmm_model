@@ -134,8 +134,9 @@ def outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=True):
     mu = rotate(mu, phix_deg)
     t = p.um_per_px / UM_PER_CM
 
-    phi_y = maia_d.pads[q].angle_Y_rad
-    return mu * t / np.cos(phi_y)
+    phi = maia_d.pads[q].phi
+    cmam = mu * t / np.cos(phi)
+    return cmam
 
 
 def project_sinogram(event_type, p, q, maia_d, anglelist, el=None):
