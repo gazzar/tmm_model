@@ -116,7 +116,7 @@ def default():
         # forward model
         no_in_absorption: False
         no_out_absorption: False
-        absorb_with_matrix_only: True
+        absorb_with_matrix_only: False
 
         # input model 200x200px of the simulated test phantom. See readme.txt in
         # R:/Science/XFM/GaryRuben/projects/TMM/work/20160405_1:
@@ -134,6 +134,10 @@ def default():
         save_g_images: False
         save_projection_images: True
         mlem_profile: False
+
+        # osem
+        osem_max_mod_angle: 360
+        osem_number_of_subsets: 6
 
         # ---
         # Examples
