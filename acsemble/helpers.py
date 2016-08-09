@@ -136,9 +136,25 @@ def rotate(im, angle):
     ----------
     im - float array
     angle - rotation angle in degrees
+        Rotates ccw for an image with (0,0) (row, column) coords in the upper-left or
+        equivalently, rotates cw for an image with (0,0) (row, column) coords in the
+        lower-left. Note, this is the opposite sense to the mathematical convention for
+        rows corresponding to y and cols to x.
+                            y
+                            ^
+                            |
+        with z(out-of-page) o--> x
+        However, our 2d images lie in the xz-plane
+        with y(out-of-page) o--> x
+                            |
+                            v
+                            z
+        so actually the rotation sense matches convention for this case. In other words, for
+        xz-plane images, don't change the rotation sign. For xy-plane images call with -angle.
 
     Returns
     -------
+    2d array of float (Rotated image)
 
     """
     assert issubclass(im.dtype.type, np.floating)
