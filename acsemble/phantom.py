@@ -16,11 +16,10 @@ import logging
 import os
 import numpy as np
 from skimage import img_as_ubyte
-from skimage.transform import rotate
 import matplotlib.pyplot as plt
 from collections import Iterable
 from . import helpers
-from .helpers import write_tiff32, read_tiff32
+from .helpers import write_tiff32, read_tiff32, rotate
 from .data_helpers import MatrixProperties
 import ruamel.yaml as yaml
 import glob
@@ -154,23 +153,6 @@ class Phantom2d(object):
             else:
                 result = val / self.um_per_px
         return result
-
-    def rotate(self, angle):
-        """Rotate the phantom_array
-
-        Arguments:
-        angle - angle in degrees (ccw) to rotate the phantom_array
-
-        """
-        # scikit-image generates the rotated output array as a float array
-        # which must be scaled back to uint8 using the img_as_ubyte function.
-        # Also, it raises a warning, which needs to be ignored - sheesh!
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # order=0 forces nearest-neighbour interpolation.
-            ub = img_as_ubyte(rotate(self.phantom_array, angle, order=0))
-        return ub
 
     def add_shape(self, thing):
         """Add a 'thing'; a square, circular or diamond-shaped patch of some
