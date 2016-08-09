@@ -94,7 +94,11 @@ class Pad(object):
         self.angle_X_rad = np.arctan2(px, pz)
         self.angle_Y_rad = np.arctan2(py, pz)
 
-        # Theta and Phi spherical coordinate properties
+        # Angle from xz-plane to pad centre
+        self.out_of_xz_plane_angle = np.arctan2(py, np.sqrt(px*px + pz*pz))
+
+        # Theta and Phi spherical coordinate properties where the polar orientation is along
+        # the z-axis.
         self.theta = np.arccos(pz / np.linalg.norm(self.pad_centre_xyz))
         self.phi = np.arctan2(py, px)
 
