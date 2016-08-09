@@ -122,7 +122,7 @@ def outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=True):
 
     # Apply R_{-theta} operator to mu
     # Apply R_{-phi} operator
-    mu = rotate(mu, -(angle + phix_deg))
+    mu = rotate(mu, angle + 180 - phix_deg)
 
     # Apply C_z operator
     if increasing_ix:
@@ -131,10 +131,10 @@ def outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=True):
         mu = np.cumsum(mu[::-1], axis=0)[::-1]
 
     # Apply R_{phi} operator
-    mu = rotate(mu, phix_deg)
+    mu = rotate(mu, 180 + phix_deg)
     t = p.um_per_px / UM_PER_CM
 
-    phi = maia_d.pads[q].phi
+    phi = maia_d.pads[q].out_of_xz_plane_angle
     cmam = mu * t / np.cos(phi)
     return cmam
 
@@ -216,8 +216,13 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
         p.energy - incident beam energy (keV)
         p.um_per_px - length of one pixel of the map (um)
     angle : float
-        angle in degrees (0 degrees is with the source below the object,
-        projecting parallel to the y-axis).
+        tomography angle in degrees. The rotation axis is the y-axis in a conventional xyz
+        right-handed coordinate system, so positive rotation in the xz-plane is ccw. i.e.
+        with y(out-of-page) o--> x
+                            |
+                            v
+                            z
+        therefore, using our rotate function, which assumes 2d rotation
     n0 : float
         incident irradiance (default 1.0).
     increasing_ix : bool, optional
@@ -250,7 +255,7 @@ def irradiance_map(p, angle, n0=1.0, increasing_ix=True, matrix_only=False):
 
     # project at angle theta by rotating the phantom by angle -theta and
     # projecting along the z-axis (along columns)
-    im = rotate(mu0, -angle)     # rotate by angle degrees ccw
+    im = rotate(mu0, angle)     # rotate by angle degrees ccw
     t = p.um_per_px / UM_PER_CM
     # accumulate along z-axis (image defined in xz-coordinates, so accumulate
     # along image rows), consistent with matlab sinogram convention.
@@ -540,7 +545,7 @@ def fluoro_emission_map(p, n_map, angle, el):
     """
     # edge_map = zero_outside_circle(p.el_maps[el])
     edge_map = p.el_maps[el]
-    edge_map_r = rotate(edge_map, -angle)
+    edge_map_r = rotate(edge_map, angle)
     del edge_map
 
     # Get Z for the fluorescing element
@@ -681,7 +686,7 @@ def channel_rayleigh_map(p, q, maia_d, n_map, angle):
     ma += xrl.DCSP_Rayl(Z, energy, theta, phi)
 
     # edge_map = zero_outside_circle(p.el_maps[el])
-    edge_map_r = rotate(edge_map, -angle)
+    edge_map_r = rotate(edge_map, angle)
     del edge_map
 
     # Get Z for the fluorescing element
