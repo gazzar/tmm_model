@@ -111,7 +111,7 @@ def iradon_absorption(sino, angles):
     im = helpers.read_tiff32(os.path.join(outdir, 'r_0.tif'))
     # Reorient the reconstruction to match the convention established by other
     # reconstructors here.
-    im = np.rot90(im)
+    im = im.T
 
     # Apply a hard circular mask to the result, to match the behaviour of skimage
     im = helpers.zero_outside_circle(im)
@@ -221,7 +221,7 @@ def iradon(sino, angles, filter='none'):
         im = helpers.read_tiff32(os.path.join(outdir, 'r_0.tif'))
         # Reorient the reconstruction to match the convention established by other
         # reconstructors here.
-        im = np.rot90(im)
+        im = im.T
 
         # Apply a hard circular mask to the result, to match the behaviour of skimage
         im = helpers.zero_outside_circle(im)
