@@ -14,6 +14,7 @@ import six
 from . import config
 import logging
 import os
+import types
 import numpy as np
 from skimage import img_as_ubyte
 import matplotlib.pyplot as plt
@@ -21,7 +22,12 @@ from collections import Iterable
 from . import helpers
 from .helpers import write_tiff32, read_tiff32, rotate
 from .data_helpers import MatrixProperties
-import ruamel.yaml as yaml
+try:
+    import ruamel.yaml as yaml
+except ImportError:
+    import ruamel_yaml as yaml                # Anaconda Python renamed module
+assert isinstance(yaml, types.ModuleType)     # http://stackoverflow.com/questions/865503
+
 import glob
 import textwrap
 

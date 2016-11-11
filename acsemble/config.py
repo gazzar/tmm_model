@@ -1,7 +1,12 @@
 from __future__ import absolute_import, division, print_function
 import six
 import os
-import ruamel.yaml as yaml
+import types
+try:
+    import ruamel.yaml as yaml
+except ImportError:
+    import ruamel_yaml as yaml                # Anaconda Python renamed module
+assert isinstance(yaml, types.ModuleType)     # http://stackoverflow.com/questions/865503
 from appdirs import AppDirs
 import logging
 import logging.config
