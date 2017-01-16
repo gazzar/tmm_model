@@ -124,15 +124,28 @@ def outgoing_cmam(p, q, maia_d, angle, energy, increasing_ix=True):
     # Apply R_{-phi} operator
     mu = rotate(mu, angle + 180 - phix_deg)
 
+    saveflag = np.isclose(angle, config.cmam_angle_save) and config.save_projection_images
+    if saveflag:
+        path = os.path.join(config.mlem_im_path, 'project_cmam1_%03d.tif' % config.i)
+        helpers.write_tiff32(path, mu)
+
     # Apply C_z operator
     if increasing_ix:
         mu = np.cumsum(mu, axis=0)
     else:
         mu = np.cumsum(mu[::-1], axis=0)[::-1]
 
+    if saveflag:
+        path = os.path.join(config.mlem_im_path, 'project_cmam2_%03d.tif' % config.i)
+        helpers.write_tiff32(path, mu)
+
     # Apply R_{phi} operator
     mu = rotate(mu, 180 + phix_deg)
     t = p.um_per_px / UM_PER_CM
+
+    if saveflag:
+        path = os.path.join(config.mlem_im_path, 'project_cmam3_%03d.tif' % config.i)
+        helpers.write_tiff32(path, mu)
 
     phi = maia_d.pads[q].out_of_xz_plane_angle
     cmam = mu * t / np.cos(phi)
@@ -187,7 +200,7 @@ def project_sinogram(event_type, p, q, maia_d, anglelist, el=None):
         else:
             sinogram[:, i] = (e_map * np.exp(-c)).sum(axis=0)
 
-        if i == 0 and config.save_projection_images:
+        if i == config.angle_save_index and config.save_projection_images:
             path = os.path.join(config.mlem_im_path, 'project_%s_map_%03d.tif' % (el, config.i))
             helpers.write_tiff32(path, p.el_maps[el])
             path = os.path.join(config.mlem_im_path, 'project_n_map_%03d.tif' % config.i)

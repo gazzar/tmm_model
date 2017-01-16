@@ -137,8 +137,11 @@ def default():
         save_f_images: True
         save_d_images: False
         save_g_images: False
+        save_r_images: False
         save_projection_images: True
         mlem_profile: False
+        angle_save_index: 0
+        cmam_angle_save: 0.0
 
         # osem
         osem_max_mod_angle: 360

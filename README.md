@@ -3,15 +3,15 @@ acsemble
 
 Author: Gary Ruben
 
-CSIRO Biophysics/Manufacturing Business Unit
+Formerly of CSIRO Biophysics/Manufacturing Business Unit
 
 Absorption corrected reconstruction for X-ray Fluorescence Tomography.
-Currently this implements a forward model for tomography at the Australian
-Synchrotron XFM beamline.
+Currently this implements a forward model and iterative reconstruction code for
+tomography at the Australian Synchrotron XFM beamline.
 
 Dependencies
 ------------
-`acsemble`_ is written in Python 2.7 and depends on numpy, scipy, pandas,
+`acsemble`_ is written in Python 3.5 and depends on numpy, scipy, pandas,
 matplotlib, scikit-image, xraylib [1], as well as pure-Python
 modules that are pip-installable from PyPI.
 
@@ -34,7 +34,3 @@ Notes:
 This code uses xraylib [1]
 [1] T. Schoonjans et al., Spectrochim. Acta B 66, 776 (2011),
     http://github.com/tschoonj/xraylib/wiki
-
-Version History
----------------
-0.1     Initial version
